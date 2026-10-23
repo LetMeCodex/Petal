@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Petal Island — Dewdrop mockup</title>
+  <link rel="stylesheet" href="../../src/theme/theme.css">
+  <link rel="stylesheet" href="island.css">
+</head>
+<body>
+  <div class="desk">
+    <div class="wall"></div>
+    <div class="win"><div class="win-bar"><i></i><i></i><i></i><span>Downloads</span></div>
+      <div class="files"><span class="f"><img src="img/mug.jpg" alt=""><b>Mug.jpg</b></span><span class="f"><img src="img/receipt.png" alt=""><b>Receipt.png</b></span></div>
+    </div>
+
+    <!-- Pink light the drop throws onto the desktop below it. -->
+    <div class="caustic"></div>
+
+    <!-- The dewdrop: clings to the top edge (concave fillets), frosted pearl glass, iridescent rim. -->
+    <div class="dew" id="dew">
+      <i class="fillet l"></i><i class="fillet r"></i>
+      <div class="lens"></div>
+
+      <!-- 01 idle -->
+      <section class="s s-idle"><canvas class="bud" data-bloom="0.2"></canvas></section>
+
+      <!-- 02 hover -->
+      <section class="s s-hover">
+        <header>
+          <canvas class="bud sm" data-bloom="0.6"></canvas>
+          <nav class="tabs"><button class="tab on">Recent</button><button class="tab">Copied text</button><button class="tab">Settings</button></nav>
+          <span class="mono">Shift · ready</span>
+        </header>
+        <div class="recent">
+          <div class="card"><div class="thumb checker"><img src="img/mug-nobg.png" alt=""></div><b>Mug No BG.png</b><span class="mono">Remove BG · 2m</span></div>
+          <div class="card"><div class="thumb"><img src="img/addbg.png" alt=""></div><b>Screenshot With Background.png</b><span class="mono">Add BG · 9m</span></div>
+          <div class="card"><div class="thumb pdf"><svg viewBox="0 0 24 24"><path d="M8 3h11v14H8zM5 7v14h11M11 8h5M11 12h5"/></svg></div><b>Invoice Merged.pdf</b><span class="mono">Merge · 1h</span></div>
+        </div>
+      </section>
+
+      <!-- 03 drag -->
+      <section class="s s-drag">
+        <div class="bloom-wrap"><canvas class="bud big" data-bloom="1"></canvas></div>
+        <div class="drop">
+          <div class="drop-head"><span class="title">Let go on a petal</span><span class="mono">Mug.jpg</span></div>
+          <div class="beads">
+            <span class="bead">Convert</span><span class="bead">Compress</span><span class="bead">Copy text</span><span class="bead">Edit</span><span class="bead">Crop</span>
+            <span class="bead hot">Remove background</span><span class="bead">Add background</span><span class="bead">Annotate</span><span class="bead">Redact</span><span class="bead off">Merge PDF</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 04 working -->
+      <section class="s s-work">
+        <div class="rise"><svg viewBox="0 0 340 52" preserveAspectRatio="none"><path d="M0 22C40 16 70 28 110 22S180 14 220 22 300 28 340 20V52H0Z"/></svg></div>
+        <canvas class="bud" data-bloom="0.55" data-spin="1"></canvas>
+        <div class="txt"><span class="title">Removing background</span><span class="mono">Mug.jpg · 62%</span></div>
+      </section>
+
+      <!-- 05 done -->
+      <section class="s s-done">
+        <canvas class="bud" data-bloom="1"></canvas>
+        <div class="txt"><span class="title">Mug No BG.png is ready</span><span class="mono">Remove BG · 1.2 s</span></div>
+        <div class="acts"><button class="ink">Open</button><button class="ink soft">Folder</button></div>
+      </section>
+
+      <!-- 06 suggestion -->
+      <section class="s s-suggest">
+        <div class="thumb mini"><img src="img/addbg.png" alt=""></div>
+        <div class="txt"><span class="title">New screenshot</span><span class="mono">Just now · 1920 × 1080</span></div>
+        <div class="acts"><span class="bead">Add background</span><span class="bead">Redact</span><span class="bead">Copy text</span><button class="x" aria-label="Dismiss">×</button></div>
+      </section>
+
+      <!-- 07 error -->
+      <section class="s s-error">
+        <canvas class="bud" data-bloom="0.05" data-wilt="1"></canvas>
+        <div class="txt"><span class="title">No text in Receipt.png</span><span class="mono">Try a sharper image</span></div>
+        <button class="ink soft">Retry</button>
+      </section>
+    </div>
+
+    <!-- Drag: a tendril of glass reaching down to the file. Done: the result hangs below as a drip you can grab. -->
+    <svg class="tendril" viewBox="0 0 120 120" aria-hidden="true"><path d="M30 0C30 30 52 46 58 70 64 92 84 104 96 110 70 116 48 104 40 84 30 60 4 34 4 0Z"/></svg>
+    <div class="drip">
+      <div class="drip-glass"><div class="thumb checker"><img src="img/mug-nobg.png" alt=""></div></div>
+      <span class="mono drip-cap">Drag me anywhere</span>
+    </div>
+    <img class="ghost" src="img/mug.jpg" alt="">
+  </div>
+  <script type="module" src="island.js"></script>
+</body>
+</html>

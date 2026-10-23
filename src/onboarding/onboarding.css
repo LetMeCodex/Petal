@@ -1,0 +1,125 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; }
+body { color: var(--text); font-family: var(--sans); font-size: 13px; -webkit-font-smoothing: antialiased; }
+
+/* ---------- title bar ---------- */
+.titlebar {
+  position: relative; z-index: 2; -webkit-app-region: drag; height: 44px; padding: 0 16px 0 28px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.close { -webkit-app-region: no-drag; width: 28px; height: 28px; }
+.close svg { width: 10px; height: 10px; stroke: var(--pearl); stroke-width: 1.5; stroke-linecap: round; }
+.close:hover { transform: rotate(90deg); }
+
+main {
+  position: absolute; z-index: 1; inset: 44px 18px 18px 18px;
+  display: grid; grid-template-columns: 320px 1fr; gap: 34px; padding: 30px 34px 26px;
+  animation: rise 700ms var(--ease) both;
+}
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+
+/* ---------- hero ---------- */
+.hero { display: flex; flex-direction: column; justify-content: center; gap: 20px; }
+.bloom { position: relative; width: 260px; height: 260px; margin: -10px auto 0; }
+.bloom canvas { width: 260px; height: 260px; display: block; }
+
+/* Display type is alive: each letter is a variable-font cell whose weight and width follow the pointer
+   (set per letter from living.js) and breathe slowly on their own. */
+h1 { margin: 0; font-family: var(--display); font-size: 52px; line-height: 0.98; font-weight: 500; letter-spacing: -0.03em; }
+h1 .word { display: inline-block; white-space: nowrap; }
+h1 .ch {
+  display: inline-block; opacity: 0; transform: translateY(14px);
+  font-weight: var(--w, 420); font-stretch: var(--wd, 92%);
+  animation: settle 900ms var(--ease) forwards; animation-delay: calc(var(--n) * 40ms + 120ms);
+  transition: font-weight 380ms var(--ease), font-stretch 380ms var(--ease);
+}
+h1 .accent .ch { background: linear-gradient(180deg, #fff 0%, #ffd7e4 50%, #ff9ec0 100%); -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none; filter: drop-shadow(0 1px 1.5px rgba(80, 16, 52, 0.35)); }
+@keyframes settle { to { opacity: 1; transform: none; } }
+.lede { margin: 0; color: var(--text-soft); font-size: 14px; line-height: 1.6; max-width: 290px; }
+
+/* ---------- setup ---------- */
+.setup { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.label-row { display: flex; justify-content: space-between; align-items: baseline; margin-top: 4px; }
+.dim { color: rgba(255, 243, 247, 0.3); letter-spacing: 0.14em; }
+
+.cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; perspective: 900px; }
+.card {
+  position: relative; overflow: hidden; text-align: left; cursor: pointer; font: inherit; color: var(--text);
+  display: flex; flex-direction: column; gap: 5px; padding: 14px 14px 16px; min-height: 152px; border: 0; border-radius: 20px;
+  background: linear-gradient(170deg, rgba(255, 200, 222, 0.16), rgba(110, 44, 80, 0.14));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 12px 26px -18px rgba(60, 10, 40, 0.6);
+  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 300ms var(--ease), box-shadow 260ms var(--ease), background 260ms;
+}
+.card::after { /* soft glare that follows the pointer */
+  content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 240ms;
+  background: radial-gradient(160px circle at var(--mx, 50%) var(--my, 0%), rgba(255, 228, 238, 0.2), transparent 60%);
+}
+.card:hover::after { opacity: 1; }
+.card:active { transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(0.97); }
+.card .cap {
+  width: 44px; height: 44px; margin-bottom: 8px; font-family: var(--sans); font-size: 13px; font-weight: 500; color: var(--pearl);
+  pointer-events: none; transition: transform 300ms var(--spring), box-shadow 300ms;
+}
+.card .cap svg { width: 18px; height: 18px; fill: none; stroke: var(--pearl); stroke-width: 1.6; stroke-linecap: round; }
+.card strong { font-family: var(--display); font-size: 17px; font-weight: 600; font-stretch: 88%; letter-spacing: -0.01em; transition: font-weight 300ms var(--ease), font-stretch 300ms var(--ease); }
+.card:hover strong { font-weight: 720; font-stretch: 96%; }
+.card span:not(.cap):not(.badge) { color: var(--text-soft); line-height: 1.45; font-size: 12px; }
+.badge { margin-top: auto; font-size: 8.5px !important; color: var(--blush) !important; letter-spacing: 0.18em; }
+.card[aria-checked="true"] {
+  background: linear-gradient(170deg, rgba(255, 196, 220, 0.34), rgba(190, 90, 140, 0.2));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 0 0 3px rgba(255, 190, 214, 0.16), 0 18px 34px -16px rgba(150, 30, 90, 0.55);
+}
+/* The selected key is "pressed": it sinks and blushes, the warm note reserved for your choice. */
+.card[aria-checked="true"] .cap { transform: translateY(2px) scale(0.96); box-shadow: var(--rim), 0 0 24px rgba(255, 190, 214, 0.6); }
+.card:focus-visible { outline: 1.5px solid var(--pearl); outline-offset: 3px; }
+.card.listening .cap { animation: listen 1.1s ease-in-out infinite; }
+@keyframes listen { 50% { box-shadow: var(--rim), 0 0 28px rgba(255, 190, 214, 0.75); } }
+
+.warn { margin: 0; font-size: 12px; color: var(--text-soft); line-height: 1.5; }
+.warn[hidden] { display: none; }
+em { color: var(--text); font-style: normal; font-weight: 600; }
+
+.zone {
+  position: relative; display: flex; align-items: center; gap: 18px; padding: 14px; border-radius: 20px;
+  background: rgba(70, 20, 50, 0.22);
+  box-shadow: inset 0 2px 12px rgba(50, 8, 32, 0.4);
+  transition: box-shadow 260ms var(--ease);
+}
+.zone.dragging { box-shadow: inset 0 2px 12px rgba(50, 8, 32, 0.4), inset 0 0 0 1.25px rgba(255, 200, 220, 0.75); }
+.zone img {
+  width: 108px; height: 74px; object-fit: cover; border-radius: 12px; cursor: grab;
+  box-shadow: 0 0 0 1px rgba(255, 236, 243, 0.6), 0 12px 24px -8px rgba(60, 10, 40, 0.7);
+  transition: transform 340ms var(--spring), filter 300ms;
+  animation: float 4s ease-in-out infinite;
+}
+.zone img:hover { transform: rotate(-3deg) scale(1.05); }
+@keyframes float { 50% { translate: 0 -3px; } }
+.zone div { display: flex; flex-direction: column; gap: 4px; }
+.zone strong { font-weight: 560; }
+.zone span { color: var(--text-soft); }
+kbd {
+  font: 500 11px var(--mono); padding: 1px 7px; border-radius: 6px; color: var(--pearl);
+  background: rgba(255, 200, 222, 0.2); box-shadow: inset 0 0 0 1px rgba(255, 236, 243, 0.4), 0 1px 0 rgba(60, 10, 40, 0.4);
+}
+
+footer { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
+.muted { color: var(--text-faint); font-size: 12px; max-width: 250px; line-height: 1.5; }
+.cta { display: flex; align-items: center; gap: 12px; flex: none; }
+.cta .arrow { width: 48px; height: 48px; cursor: default; }
+.cta .arrow svg { width: 18px; height: 18px; fill: none; stroke: var(--pearl); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; transition: transform 400ms var(--spring); }
+.cta:hover .arrow svg { transform: translateX(3px); }
+#done { height: 48px; padding: 0 26px; font-family: var(--display); font-size: 16px; font-weight: 600; font-stretch: 90%; letter-spacing: -0.01em; transition: transform 260ms var(--spring), font-stretch 300ms var(--ease), filter 200ms; }
+#done:hover { font-stretch: 100%; }
+
+/* Petal Island on/off. The knob squashes as it travels, like the switches inside the island. */
+.island-toggle { display: flex; align-items: center; gap: 12px; cursor: pointer; min-width: 0; }
+.island-toggle > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.island-toggle strong { font-weight: 560; }
+.island-toggle .muted { font-size: 12px; }
+.sw { position: relative; width: 42px; height: 24px; flex: none; border: 0; border-radius: 999px; cursor: pointer; background: rgba(70, 20, 50, 0.35); box-shadow: inset 0 1px 4px rgba(50, 8, 32, 0.5); transition: background 260ms; }
+.sw i { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 999px; background: #fff; box-shadow: 0 2px 6px rgba(40, 6, 26, 0.5); transition: left 360ms var(--spring), width 180ms var(--ease); }
+.sw:active i { width: 24px; }
+.sw[aria-checked="true"] { background: linear-gradient(90deg, #ff9cc0, #e86aa0); }
+.sw[aria-checked="true"] i { left: 21px; }
+.sw[aria-checked="true"]:active i { left: 15px; }

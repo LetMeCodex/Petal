@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset="utf-8">
+<script type="module">
+  import * as pdfjs from '../../node_modules/pdfjs-dist/build/pdf.mjs';
+  pdfjs.GlobalWorkerOptions.workerSrc = new URL('../../node_modules/pdfjs-dist/build/pdf.worker.mjs', location.href).href;
+
+  window.pdfBridge.onRender(async ({ id, bytes, format, scale, maxPages }) => {
+    try {
+      const doc = await pdfjs.getDocument({ data: bytes }).promise;
+      const pages = [];
+      for (let n = 1; n <= Math.min(doc.numPages, maxPages); n++) {
+        const page = await doc.getPage(n);
+        const viewport = page.getViewport({ scale });
+        const canvas = new OffscreenCanvas(viewport.width, viewport.height);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        await page.render({ canvasContext: ctx, viewport }).promise;
+        const blob = await canvas.convertToBlob({ type: format === 'png' ? 'image/png' : 'image/jpeg', quality: 0.92 });
+        pages.push(new Uint8Array(await blob.arrayBuffer()));
+      }
+      await doc.destroy();
+      window.pdfBridge.reply({ id, pages });
+    } catch (err) {
+      window.pdfBridge.reply({ id, error: String(err?.message || err) });
+    }
+  });
+</script>

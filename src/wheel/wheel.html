@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'">
+  <title>Petal wheel</title>
+  <link rel="stylesheet" href="../theme/theme.css">
+  <link rel="stylesheet" href="wheel.css">
+</head>
+<body>
+  <div id="stage">
+    <div id="flower">
+      <canvas id="gl"></canvas>
+      <div id="icons"></div>
+      <div id="dome">
+        <div class="dome-face">
+          <svg class="dome-icon" viewBox="0 0 24 24" aria-hidden="true"><path id="domeIcon" d=""/></svg>
+          <div class="dome-title silver" id="domeTitle">Convert</div>
+          <div class="dome-sub" id="domeSub"></div>
+        </div>
+      </div>
+    </div>
+    <canvas id="glints" width="440" height="440"></canvas>
+
+    <div id="toast">
+      <div class="pill-glass"></div>
+      <svg class="mercury" viewBox="0 0 280 64" preserveAspectRatio="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="mercuryGrad" x1="0" x2="1">
+            <stop offset="0" stop-color="#e6ecef" stop-opacity="0.08"/><stop offset="1" stop-color="#e6ecef" stop-opacity="0.26"/>
+          </linearGradient>
+        </defs>
+        <path id="wave" d=""/>
+      </svg>
+      <div class="pill-content">
+        <svg class="status" viewBox="0 0 24 24" aria-hidden="true">
+          <circle class="spin" cx="12" cy="12" r="8.5"/>
+          <path class="check" d="M6.8 12.4l3.4 3.4 7-7.4"/>
+          <path class="cross" d="M8.5 8.5l7 7M15.5 8.5l-7 7"/>
+        </svg>
+        <div class="pill-text">
+          <div class="toast-title silver"></div>
+          <div class="toast-sub"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="wheel.js"></script>
+</body>
+</html>

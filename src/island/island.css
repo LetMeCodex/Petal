@@ -1,0 +1,324 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; user-select: none; font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+body { text-shadow: none; }
+
+/* Dewdrop palette: pearl frost, plum ink, an oil-slick rim. */
+:root {
+  --win: 780px;
+  --winh: 600px;
+  --ink: #3b1530;
+  --ink-soft: rgba(59, 21, 48, 0.72);
+  --frost: linear-gradient(180deg, rgba(255, 251, 253, 0.72) 0%, rgba(255, 241, 247, 0.6) 68%, rgba(255, 224, 237, 0.64) 100%);
+}
+@property --spin { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+
+/* Layout comes from the main process: --dx (drop centre), --dy (drop top), --dby (drop bottom gap when growing up). */
+body { --dx: 390px; --dy: 0px; --dby: 0px; --left: clamp(4px, calc(var(--dx) - var(--w) / 2), calc(var(--win) - var(--w) - 4px)); }
+body[data-state="idle"]  { --w: 54px;  --h: 56px;  --r: 27px; }
+body[data-state="hover"] { --w: 600px; --h: 206px; --r: 34px; }
+body[data-state="drag"]  { --w: 620px; --h: 196px; --r: 36px; }
+body[data-state="work"]  { --w: 340px; --h: 52px;  --r: 26px; }
+body[data-state="done"]  { --w: 420px; --h: 62px;  --r: 31px; }
+body[data-state="error"] { --w: 360px; --h: 56px;  --r: 28px; }
+
+/* ---------- the dewdrop ---------- */
+.dew {
+  --f: 14px;
+  position: absolute; top: var(--dy); left: var(--left);
+  width: var(--w); height: var(--h);
+  border-radius: 0 0 var(--r) var(--r);
+  box-shadow: inset 0 -12px 22px -8px rgba(255, 168, 204, 0.5), inset 0 -1px 0 rgba(255, 255, 255, 0.9), 0 18px 40px -14px rgba(40, 10, 60, 0.5);
+  color: var(--ink);
+  transform: translate(var(--jx, 0px), var(--jy, 0px)) scale(var(--sx, 1), var(--sy, 1));
+  transition: width 560ms var(--spring), height 560ms var(--spring), left 560ms var(--spring), border-radius 560ms var(--spring), transform 260ms var(--spring);
+  touch-action: none;
+}
+body.up .dew { top: auto; bottom: var(--dby); }
+body.float .dew { border-radius: var(--r); }
+body.float .fillet { opacity: 0; }
+body.float .dew::before { inset: 0; }
+/* While being dragged close to the top edge, the drop grows its neck back as a preview of snapping. */
+body.float.near-top .fillet { opacity: 1; }
+body.float.near-top .dew { border-radius: 6px 6px var(--r) var(--r); }
+
+.fillet { position: absolute; top: 0; width: var(--f); height: var(--f); background: rgba(255, 250, 252, 0.72); transition: opacity 200ms; }
+.fillet.l { left: calc(-1 * var(--f)); -webkit-mask: radial-gradient(circle at 0 100%, transparent var(--f), #000 calc(var(--f) + 0.5px)); }
+.fillet.r { right: calc(-1 * var(--f)); -webkit-mask: radial-gradient(circle at 100% 100%, transparent var(--f), #000 calc(var(--f) + 0.5px)); }
+
+/* Frosted snapshot of whatever is behind the drop (sent by the main process), under the frost tint.
+   The tint lives on .frost rather than .dew's background: .dew is transformed (jelly drag), so a
+   z-index:-1 backdrop would paint over its background. */
+.frost { position: absolute; inset: 0; border-radius: inherit; background: var(--frost); pointer-events: none; }
+.glass {
+  position: absolute; inset: 0; border-radius: inherit; overflow: hidden;
+  background: var(--backdrop, none) calc(-1 * var(--left)) calc(-1 * var(--dy)) / var(--win) auto no-repeat;
+  filter: blur(16px) saturate(1.7) brightness(1.08);
+  will-change: transform;   /* its own GPU layer: repaints above it must not re-run the blur */
+}
+body.up .glass { background-position-y: calc(-1 * (var(--winh) - var(--dby) - var(--h))); }
+.dew::before {
+  content: ''; position: absolute; inset: -3px 0 0 0; border-radius: inherit; padding: 1.5px; pointer-events: none;
+  background: conic-gradient(from 200deg, #ffc4d8, #d8c4ff, #bff0e0, #ffe0c4, #ffc4d8);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+}
+.lens { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; }
+.lens::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 0; width: 160px; opacity: 0.6;
+  background: linear-gradient(105deg, transparent 20%, rgba(255, 255, 255, 0.75) 50%, transparent 80%);
+  transform: translateX(-200px); will-change: transform;
+}
+/* One glint each time the drop opens up, not a loop. */
+body[data-state="hover"] .lens::before, body[data-state="done"] .lens::before { animation: streak 1.5s var(--ease) 300ms 1 both; }
+@keyframes streak { from { transform: translateX(-200px); } to { transform: translateX(780px); } }
+
+/* Drag to move: the drop stretches with your speed, then wobbles as it settles. */
+body.moving .dew { cursor: grabbing; transition: width 560ms var(--spring), height 560ms var(--spring), border-radius 300ms var(--ease); }
+body.settle .dew { animation: wobble 620ms var(--spring); }
+@keyframes wobble { 30% { transform: scale(1.12, 0.9); } 55% { transform: scale(0.94, 1.06); } 80% { transform: scale(1.03, 0.98); } }
+body[data-state="idle"] .dew, body[data-state="hover"] .dew { cursor: grab; }
+
+/* Pink light thrown onto the desktop below the drop. */
+.caustic {
+  position: absolute; left: calc(var(--left) - var(--w) * 0.05 - 15px); top: calc(var(--dy) + var(--h) - 6px);
+  width: calc(var(--w) * 1.1 + 30px); height: 54px; border-radius: 50%; pointer-events: none; opacity: 0.85;
+  /* Soft by its own gradient stops. A blur() filter here was re-run on every animated frame and
+     cost more than everything else in the island put together. */
+  background: radial-gradient(closest-side, rgba(255, 150, 200, 0.42), rgba(255, 160, 210, 0.26) 35%, rgba(200, 160, 255, 0.12) 65%, transparent);
+  transition: top 560ms var(--spring), left 560ms var(--spring), width 560ms var(--spring);
+}
+body.up .caustic { top: auto; bottom: calc(var(--dby) - 48px); }
+
+/* ---------- the bud, and the live pulse ring around it ---------- */
+.bud { position: absolute; width: 36px; height: 36px; left: calc(50% - 18px); top: 13px; transition: left 560ms var(--spring), top 560ms var(--spring), opacity 200ms; }
+body:not([data-state="idle"]) .bud { left: 12px; top: calc(var(--h) / 2 - 18px); }
+body[data-state="hover"] .bud { top: 11px; }
+body[data-state="drag"] .bud { opacity: 0; }
+.pulse { position: absolute; width: 46px; height: 46px; left: calc(50% - 23px); top: 8px; opacity: 0; transform: rotate(-90deg); transition: opacity 300ms; pointer-events: none; }
+body.pulse-on[data-state="idle"] .pulse { opacity: 1; }
+.pulse circle { fill: none; stroke-width: 2; }
+.pulse .track { stroke: rgba(59, 21, 48, 0.08); }
+.pulse .arc { stroke: url(#pulseGrad); stroke-linecap: round; stroke-dasharray: 132; stroke-dashoffset: 132; transition: stroke-dashoffset 300ms var(--ease); }
+body.calm .pulse .arc { transition: none; }
+
+/* ---------- sections cross-fade as the drop reshapes ---------- */
+.s { position: absolute; inset: 0; display: flex; align-items: center; opacity: 0; visibility: hidden; transition: opacity 220ms var(--ease), visibility 0s 220ms; }
+body[data-state="hover"] .s-hover, body[data-state="drag"] .s-drag, body[data-state="work"] .s-work,
+body[data-state="done"] .s-done, body[data-state="error"] .s-error, body[data-state="ask"] .s-ask { opacity: 1; visibility: visible; transition: opacity 320ms var(--ease) 180ms, visibility 0s; }
+
+.title { font-family: var(--display); font-size: 16px; font-weight: 650; font-stretch: 90%; letter-spacing: -0.01em; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mono { color: var(--ink-soft) !important; font-size: 9px !important; letter-spacing: 0.16em !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+
+.bead {
+  display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border-radius: 999px; white-space: nowrap;
+  font: 550 12px var(--sans); color: var(--ink);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 236, 244, 0.55));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.95), inset 0 -4px 8px rgba(255, 180, 210, 0.3), 0 3px 8px -2px rgba(120, 40, 90, 0.18);
+  transition: transform 260ms var(--spring), background 200ms, color 200ms, box-shadow 200ms;
+}
+.bead.hot { color: #fff; background: linear-gradient(180deg, #ff9cc0, #e86aa0); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 0 3px rgba(255, 156, 192, 0.25), 0 8px 18px -4px rgba(232, 106, 160, 0.6); transform: translateY(-2px) scale(1.06); }
+.bead.off { opacity: 0.38; }
+.ink { border: 0; height: 30px; padding: 0 15px; border-radius: 999px; cursor: pointer; font: 600 12.5px var(--display); font-stretch: 92%; color: #fff; background: var(--ink); box-shadow: 0 4px 12px -4px rgba(59, 21, 48, 0.6); transition: transform 220ms var(--spring), font-stretch 260ms, background 200ms; }
+.ink:hover { transform: translateY(-1px); font-stretch: 100%; }
+.ink:active { transform: scale(0.95); }
+.ink.soft { color: var(--ink); background: rgba(59, 21, 48, 0.08); box-shadow: inset 0 0 0 1px rgba(59, 21, 48, 0.1); }
+.ink.soft:hover { background: rgba(59, 21, 48, 0.13); }
+
+/* ---------- hover panel ---------- */
+.s-hover { flex-direction: column; align-items: stretch; padding: 12px 16px 14px 56px; gap: 10px; }
+.s-hover header { display: flex; align-items: center; gap: 10px; height: 30px; }
+.tabs { position: relative; display: flex; gap: 2px; flex: 1; }
+.tab { position: relative; z-index: 1; border: 0; border-radius: 999px; padding: 6px 12px; cursor: pointer; font: 550 12px var(--sans); color: var(--ink-soft); background: none; transition: color 200ms; }
+.tab:hover, .tab.on { color: var(--ink); }
+/* A glass pill that slides to the chosen tab and stretches on the way. */
+.tab-ink {
+  position: absolute; top: 0; height: 100%; left: var(--ink-x, 0px); width: var(--ink-w, 60px); border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78); box-shadow: inset 0 0 0 1px #fff, 0 2px 6px -2px rgba(120, 40, 90, 0.25);
+  transition: left 420ms var(--spring), width 420ms var(--spring);
+}
+.pane { margin-left: -40px; min-height: 0; flex: 1; }
+.pane[hidden] { display: none !important; }
+.pane.list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; align-content: start; }
+.pane:not([hidden]) { animation: pane-in 380ms var(--ease); }
+@keyframes pane-in { from { opacity: 0; transform: translateY(6px); } }
+
+.card {
+  display: grid; grid-template-columns: 58px 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center; cursor: grab;
+  padding: 8px; border-radius: 18px; background: rgba(255, 255, 255, 0.5); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9), 0 6px 14px -8px rgba(120, 40, 90, 0.3);
+  transition: transform 260ms var(--spring), background 200ms; min-width: 0;
+}
+.card:hover { transform: translateY(-2px); background: rgba(255, 255, 255, 0.72); }
+.card .thumb { grid-row: span 2; }
+.card b { font: 600 12px var(--sans); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-self: end; min-width: 0; }
+.card .mono { align-self: start; font-size: 8.5px !important; }
+.empty { grid-column: 1 / -1; text-align: center; padding: 30px 0; color: var(--ink-soft); font-size: 12.5px; }
+.thumb { width: 58px; height: 44px; border-radius: 12px; overflow: hidden; display: grid; place-items: center; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.9), 0 6px 12px -6px rgba(60, 10, 40, 0.5); background: repeating-conic-gradient(#f3e4ea 0 25%, #fff 0 50%) 0 0 / 10px 10px; }
+.thumb img { width: 100%; height: 100%; object-fit: contain; }
+.thumb svg { width: 22px; height: 22px; stroke: var(--ink); fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.text-card { grid-column: span 3; padding: 9px 12px; border-radius: 14px; cursor: pointer; font-size: 12px; color: var(--ink); background: rgba(255, 255, 255, 0.5); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background 200ms, transform 220ms var(--spring); }
+.text-card:hover { background: rgba(255, 255, 255, 0.75); transform: translateX(3px); }
+.text-card.flash { background: #ffd5e5; }
+
+/* ---------- Glance widgets ---------- */
+#paneGlance { display: flex; gap: 8px; align-items: stretch; }
+.w {
+  --hue: 330;
+  position: relative; flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  padding: 8px 4px 6px; border-radius: 20px; overflow: hidden;
+  background: rgba(255, 255, 255, 0.46); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9), 0 8px 18px -12px rgba(120, 40, 90, 0.45);
+  transition: transform 300ms var(--spring), background 240ms, box-shadow 240ms;
+  animation: tile-in 520ms var(--spring) both; animation-delay: calc(var(--i) * 45ms);
+}
+@keyframes tile-in { from { opacity: 0; transform: translateY(10px) scale(0.92); } }
+.w:hover { transform: translateY(-3px); background: rgba(255, 255, 255, 0.68); box-shadow: inset 0 0 0 1px #fff, 0 14px 24px -12px hsla(var(--hue), 70%, 50%, 0.5); }
+.w .lbl { font: 600 8.5px var(--mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-soft); }
+.w .val { font-family: var(--display); font-size: 17px; font-weight: 700; font-stretch: 86%; color: var(--ink); font-variant-numeric: tabular-nums; line-height: 1; }
+.w .val small { font-size: 10px; font-weight: 600; margin-left: 1px; opacity: 0.7; }
+.w .sub { font: 500 9.5px var(--sans); color: var(--ink-soft); white-space: nowrap; }
+
+/* Ring gauge (CPU, GPU): the arc springs to the value; its colour warms with load. */
+.ring { position: relative; width: 58px; height: 58px; }
+.ring svg { width: 58px; height: 58px; transform: rotate(-90deg); }
+.ring circle { fill: none; stroke-width: 5; }
+.ring .track { stroke: rgba(59, 21, 48, 0.08); }
+.ring .arc { stroke: hsl(var(--hue), 85%, 66%); stroke-linecap: round; stroke-dasharray: 150.8; stroke-dashoffset: 150.8; }
+body.calm .ring .arc, body.calm .tank .liquid { transition: none; }
+.ring .val { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+.spark { width: 100%; height: 14px; }
+.spark path { fill: none; stroke: hsla(var(--hue), 70%, 55%, 0.7); stroke-width: 1.4; stroke-linejoin: round; }
+.spark path.fill { fill: hsla(var(--hue), 80%, 70%, 0.18); stroke: none; }
+
+/* RAM: liquid filling a glass tile. */
+.tank { position: relative; width: 50px; height: 58px; border-radius: 14px; overflow: hidden; background: rgba(59, 21, 48, 0.06); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9); }
+/* Level rises with a transform; the wavy surface slides sideways forever. Both compositor-only. */
+.tank .liquid { position: absolute; left: 0; right: 0; top: 0; bottom: 0; transform: translateY(calc((1 - var(--fill, 0)) * 100%)); transition: transform 900ms var(--spring); }
+.tank .liquid i {
+  position: absolute; left: 0; top: -5px; bottom: 0; width: 200%;
+  background: linear-gradient(180deg, #ffb3cf, #c9a6ff);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 6'%3E%3Cpath d='M0 3 Q12.5 0 25 3 T50 3 V6 H0Z'/%3E%3C/svg%3E") 0 0 / 50px 6px repeat-x, linear-gradient(#000 0 0) 0 6px / 100% 100% no-repeat;
+  will-change: transform;   /* moved by widgets.js at 30 fps, as its own GPU layer */
+}
+.tank .val { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 14px; mix-blend-mode: multiply; }
+
+/* Network: two streams whose dashes flow as fast as the data does. */
+.flow { width: 100%; display: flex; flex-direction: column; gap: 3px; padding: 0 6px; }
+.flow .row { display: flex; align-items: center; gap: 5px; font: 600 10.5px var(--sans); color: var(--ink); font-variant-numeric: tabular-nums; }
+.stream { flex: 1; height: 4px; border-radius: 2px; overflow: hidden; position: relative; }
+.stream i { position: absolute; inset: 0 -20px 0 0; background: repeating-linear-gradient(90deg, hsla(var(--hue, 330), 80%, 62%, 0.9) 0 3px, transparent 3px 10px); will-change: transform; }
+.row.up .stream i { background: repeating-linear-gradient(90deg, hsla(270, 70%, 66%, 0.85) 0 3px, transparent 3px 10px); }
+@keyframes flow { to { transform: translateX(-10px); } }
+.flow .row b { min-width: 46px; text-align: right; font-weight: 650; }
+
+/* Battery: a pill body with liquid level; the bolt breathes while charging. */
+.batt { position: relative; width: 52px; height: 26px; border-radius: 8px; box-shadow: inset 0 0 0 1.5px rgba(59, 21, 48, 0.35); overflow: hidden; }
+.batt::after { content: ''; position: absolute; right: -4px; top: 9px; width: 3px; height: 8px; border-radius: 0 2px 2px 0; background: rgba(59, 21, 48, 0.35); }
+.batt i { position: absolute; left: 2px; top: 2px; bottom: 2px; width: calc((100% - 4px) * var(--lvl, 0.5)); border-radius: 6px; background: linear-gradient(90deg, #7fe0b5, #b9f0d2); transition: width 900ms var(--spring); }
+.batt.low i { background: linear-gradient(90deg, #ff8a8a, #ffb3b3); }
+.bolt { width: 14px; height: 14px; fill: #e86aa0; opacity: 0; }
+.charging .bolt { opacity: 1; animation: bolt 1.2s ease-in-out 1; }   /* one pulse says "charging"; more would redraw for seconds */
+@keyframes bolt { 50% { transform: scale(1.25); } }
+
+/* Clock: each digit rolls to the next. */
+.clock { display: flex; align-items: baseline; font-family: var(--display); font-size: 24px; font-weight: 700; font-stretch: 84%; color: var(--ink); }
+.digit { position: relative; display: inline-block; height: 1.05em; overflow: hidden; width: 0.58em; text-align: center; }
+.digit span { position: absolute; left: 0; right: 0; transition: transform 520ms var(--spring); }
+.colon { width: 0.3em; text-align: center; transition: opacity 160ms; }
+.clock.tock .colon { opacity: 0.25; }
+
+/* ---------- inline Settings ---------- */
+#paneSettings { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 22px; }
+.set-col { display: flex; flex-direction: column; gap: 7px; min-width: 0; }
+.sw-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font: 550 12px var(--sans); color: var(--ink); cursor: pointer; }
+/* Switch: the knob squashes as it travels, like a drop of liquid. */
+.sw { position: relative; width: 38px; height: 22px; border: 0; border-radius: 999px; cursor: pointer; flex: none; background: rgba(59, 21, 48, 0.14); transition: background 260ms; }
+.sw i { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 999px; background: #fff; box-shadow: 0 2px 5px rgba(59, 21, 48, 0.35); transition: left 360ms var(--spring), width 180ms var(--ease); }
+.sw:active i { width: 22px; }
+.sw[aria-checked="true"] { background: linear-gradient(90deg, #ff9cc0, #e86aa0); }
+.sw[aria-checked="true"] i { left: 19px; }
+.sw[aria-checked="true"]:active i { left: 13px; }
+.seg { display: flex; padding: 2px; border-radius: 999px; background: rgba(59, 21, 48, 0.08); }
+.seg button { border: 0; background: none; padding: 4px 10px; border-radius: 999px; cursor: pointer; font: 550 11.5px var(--sans); color: var(--ink-soft); transition: background 220ms, color 220ms; }
+.seg button.on { background: #fff; color: var(--ink); box-shadow: 0 2px 6px -2px rgba(120, 40, 90, 0.3); }
+.wchips { display: flex; flex-wrap: wrap; gap: 5px; }
+.wchip { border: 0; cursor: pointer; padding: 4px 10px; border-radius: 999px; font: 550 11.5px var(--sans); color: var(--ink-soft); background: rgba(59, 21, 48, 0.06); transition: background 220ms, color 220ms, transform 260ms var(--spring); }
+.wchip:active { transform: scale(0.92); }
+.wchip.on { color: #fff; background: linear-gradient(180deg, #ff9cc0, #e86aa0); }
+.set-acts { display: flex; gap: 6px; margin-top: auto; }
+.set-acts .ink { height: 26px; padding: 0 12px; font-size: 11.5px; }
+
+/* ---------- drag (file drop zone) ---------- */
+.s-drag { padding: 0 24px 0 8px; gap: 8px; }
+.bloom-wrap { width: 176px; height: 176px; flex: none; }
+#bloom { width: 176px; height: 176px; }
+.drop { flex: 1; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.drop-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.beads { display: flex; flex-wrap: wrap; gap: 7px; }
+
+/* working: blush liquid rising */
+.s-work { padding: 0 18px 0 56px; }
+.rise { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; }
+.rise svg { position: absolute; left: 0; bottom: 0; width: 100%; height: 100%; }
+.rise path { fill: rgba(255, 150, 196, 0.34); }
+
+/* done / error */
+.s-done { padding: 0 12px 0 56px; gap: 10px; }
+.acts { display: flex; align-items: center; gap: 6px; }
+.s-error { padding: 0 16px 0 56px; }
+body[data-state="error"] .dew { background: linear-gradient(180deg, rgba(250, 244, 246, 0.76), rgba(236, 218, 224, 0.7)); }
+body[data-state="error"] .title { color: #7a2a33; }
+
+/* ---------- tendril: glass reaching toward the dragged file ---------- */
+.tendril { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; opacity: 0; transition: opacity 200ms; filter: drop-shadow(0 8px 14px rgba(40, 10, 60, 0.35)); }
+.tendril.on { opacity: 1; }
+.tendril path { fill: rgba(255, 244, 249, 0.8); stroke: rgba(255, 255, 255, 0.95); stroke-width: 1; }
+
+/* ---------- drip: the result hangs below the drop, ready to be dragged out ---------- */
+.drip {
+  position: absolute; left: calc(var(--left) + var(--w) / 2 - 60px); top: calc(var(--dy) + var(--h) - 4px); width: 120px;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  opacity: 0; transform: translateY(-30px) scale(0.4); transform-origin: 50% 0; pointer-events: none;
+  transition: opacity 260ms var(--ease), transform 700ms var(--spring), top 560ms var(--spring), left 560ms var(--spring);
+}
+body.up .drip { top: auto; bottom: calc(var(--dby) - 134px); }
+body.has-drip .drip { opacity: 1; transform: none; pointer-events: auto; }
+.drip-glass {
+  position: relative; width: 96px; height: 104px; display: grid; place-items: center; padding-top: 10px; cursor: grab;
+  border-radius: 50% 50% 48% 48% / 34% 34% 66% 66%;
+  background: var(--frost);
+  box-shadow: inset 0 -12px 20px -8px rgba(255, 168, 204, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.85), 0 16px 34px -12px rgba(40, 10, 60, 0.55);
+  animation: sway 3.2s ease-in-out infinite; transform-origin: 50% -20px;
+}
+.drip-glass:active { cursor: grabbing; }
+.drip-glass::before {
+  content: ''; position: absolute; left: 50%; top: -12px; width: 22px; height: 18px; transform: translateX(-50%);
+  background: rgba(255, 246, 250, 0.8);
+  -webkit-mask: radial-gradient(circle at 0 100%, transparent 9px, #000 9.5px) left / 50% 100% no-repeat, radial-gradient(circle at 100% 100%, transparent 9px, #000 9.5px) right / 50% 100% no-repeat;
+}
+.drip .thumb { width: 64px; height: 50px; border-radius: 14px; }
+@keyframes sway { 50% { transform: rotate(3deg); } }
+.drip-cap { color: rgba(255, 236, 244, 0.9) !important; font-size: 8.5px !important; letter-spacing: 0.2em !important; text-shadow: 0 1px 3px rgba(40, 10, 30, 0.7); }
+
+/* ---------- calm motion: keep the meaning, drop the flourish ---------- */
+body.calm .dew::before, body.calm .lens, body.calm .drip-glass, body.calm .colon, body.calm .stream i, body.calm .tank .liquid i, body.calm .charging .bolt { animation: none; }
+body.calm .w { animation: none; }
+body.calm.settle .dew { animation: none; }
+#hoverMeta.flash { color: #c2417e !important; animation: meta-flash 1.6s var(--ease); }
+@keyframes meta-flash { 0%, 100% { opacity: 1; } 15%, 45% { opacity: 0.35; } 30% { opacity: 1; } }
+
+/* ---------- performance: nothing animates unless you can see it ----------
+   Every frame of this transparent always-on-top window costs a desktop recomposite, so animations
+   inside a section that isn't showing are paused, and Calm motion or a hidden window stops them all. */
+body:not([data-state="hover"]) .s-hover *, body:not([data-state="hover"]) .s-hover *::before,
+body:not(.has-drip) .drip-glass, body.asleep *, body.asleep *::before { animation-play-state: paused !important; }
+/* Calm: no animation at all. Not paused (a paused entrance can freeze something half-drawn): every
+   animated element's resting style is its finished look, so dropping the animation shows it done. */
+body.calm *, body.calm *::before { animation: none !important; }
+body.calm .lens::before { animation: none !important; }
+#paneGlance[hidden] * { animation: none !important; }
+
+/* Desktop without a battery: show a plug, not a full battery. */
+.plug { display: none; width: 26px; height: 26px; fill: none; stroke: var(--ink); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; opacity: 0.8; }
+.nobat .plug { display: block; }
+.nobat .batt, .nobat .bolt { display: none; }
+
+.set-note { min-height: 12px; color: #b4476d !important; }

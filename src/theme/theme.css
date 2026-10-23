@@ -1,0 +1,95 @@
+/* Petal design tokens + the glass recipe shared by every window.
+   Rose-tinted liquid glass over a living pastel background; pearl rims; blush when touched. */
+@font-face { font-family: 'Bricolage'; src: url('fonts/Bricolage.woff2') format('woff2'); font-weight: 200 800; font-stretch: 75% 100%; font-display: block; }
+@font-face { font-family: 'Geist'; src: url('fonts/Geist.woff2') format('woff2'); font-weight: 100 900; font-display: block; }
+@font-face { font-family: 'Geist Mono'; src: url('fonts/GeistMono.woff2') format('woff2'); font-weight: 100 900; font-display: block; }
+
+:root {
+  --plum: #2a1222;
+  --mauve: #6b3a55;
+  --rose: #f2a7c0;
+  --blush: #ffc9d8;
+  --pearl: #fff1f5;
+  --peach: #ffd2bd;
+  --lilac: #d9c6ff;
+  --dew: #bfe8d4;        /* success only */
+  --ember: #ff9a9a;      /* errors only */
+
+  --text: #fff3f7;
+  --text-soft: rgba(255, 243, 247, 0.8);
+  --text-faint: rgba(255, 243, 247, 0.56);
+
+  --display: 'Bricolage', 'Segoe UI Variable Display', system-ui, sans-serif;
+  --sans: 'Geist', 'Segoe UI Variable Text', system-ui, sans-serif;
+  --mono: 'Geist Mono', 'Cascadia Mono', Consolas, monospace;
+
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --spring: cubic-bezier(0.34, 1.46, 0.64, 1);
+
+  /* The rim: bright pearl-pink edge, plum hairline outside it, blush pooling at the bottom, shade at the top. */
+  --rim:
+    inset 0 0 0 1.25px rgba(255, 236, 243, 0.82),
+    inset 0 1.5px 0 1px rgba(255, 255, 255, 0.38),
+    0 0 0 1px rgba(60, 18, 42, 0.45),
+    inset 0 -14px 24px -6px rgba(255, 206, 224, 0.36),
+    inset 0 10px 18px -8px rgba(60, 16, 40, 0.3);
+  --lift: 0 14px 30px -10px rgba(70, 14, 46, 0.55), 0 2px 6px rgba(70, 14, 46, 0.3);
+}
+
+/* The living background canvas (bloom-bg.js). It renders at low resolution; the compositor's
+   upscale is already soft, so no extra (expensive) blur filter is applied here. */
+canvas.bg { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; z-index: 0; }
+
+/* Glass that catches the background: its rim lights up where the main form passes behind it,
+   and a faint reflection of that light rides across the surface. Positions come from --blob-x/--blob-y. */
+.reflect::before, .reflect::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; }
+.reflect::before {
+  padding: 1.25px;
+  background:
+    radial-gradient(360px circle at var(--blob-x, 30%) var(--blob-y, 30%), rgba(255, 228, 238, 1), rgba(255, 200, 220, 0) 70%) fixed,
+    linear-gradient(180deg, rgba(255, 236, 243, 0.42), rgba(255, 236, 243, 0.1));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+}
+.reflect::after { background: radial-gradient(480px circle at var(--blob-x, 30%) var(--blob-y, 30%), rgba(255, 214, 230, 0.16), transparent 65%) fixed; }
+
+/* Large frosted sheet that tints itself with whatever colour is behind it. */
+.sheet {
+  border-radius: 28px;
+  background: linear-gradient(165deg, rgba(150, 60, 105, 0.2), rgba(90, 30, 64, 0.3) 60%, rgba(160, 70, 115, 0.2));
+  backdrop-filter: blur(30px) saturate(1.7);
+  box-shadow: inset 0 0 0 1px rgba(255, 226, 236, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 30px 60px -30px rgba(60, 10, 40, 0.6);
+}
+
+/* Glass dome / pill controls: rose glass that lets the background's colour through. */
+.dome, .pill {
+  position: relative; border: 0; cursor: pointer; color: var(--text); font-family: var(--sans);
+  background:
+    radial-gradient(120% 90% at 50% 112%, rgba(255, 214, 230, 0.5), rgba(255, 214, 230, 0) 58%),
+    linear-gradient(180deg, rgba(110, 44, 80, 0.42), rgba(236, 160, 192, 0.26));
+  backdrop-filter: blur(12px) saturate(1.6);
+  box-shadow: var(--rim), var(--lift);
+  transition: transform 260ms var(--spring), box-shadow 260ms var(--ease), filter 200ms;
+}
+.dome { border-radius: 50%; display: grid; place-items: center; }
+.pill { border-radius: 999px; }
+.dome:hover, .pill:hover { transform: translateY(-1px); filter: brightness(1.1) saturate(1.1); }
+.dome:active, .pill:active { transform: translateY(1px) scale(0.97); filter: brightness(0.96); box-shadow: var(--rim), 0 6px 14px -8px rgba(70, 14, 46, 0.6); }
+.dome:focus-visible, .pill:focus-visible { outline: 1.5px solid var(--pearl); outline-offset: 4px; }
+
+/* Engraved pearl-pink text, like "Upload". */
+.silver {
+  background: linear-gradient(180deg, #ffffff 0%, #ffe6ee 52%, #f0bfd0 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent; text-shadow: none;
+  filter: drop-shadow(0 1px 0 rgba(60, 14, 40, 0.35));
+}
+
+/* Light text over bright pink keeps its edge with a faint plum shadow. */
+body { text-shadow: 0 1px 2px rgba(80, 16, 52, 0.28); }
+
+/* Spec-sheet caption. */
+.mono { font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.2em; font-size: 10.5px; color: var(--text-faint); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; transition-delay: 0ms !important; }
+}

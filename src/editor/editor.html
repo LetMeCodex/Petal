@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'">
+  <title>Petal</title>
+  <link rel="stylesheet" href="../theme/theme.css">
+  <link rel="stylesheet" href="editor.css">
+</head>
+<body>
+  <canvas class="bg" id="bg" aria-hidden="true"></canvas>
+  <canvas id="confetti" aria-hidden="true"></canvas>
+  <div class="window">
+    <header class="titlebar">
+      <button id="close" class="dome close" aria-label="Close" title="Close (Esc)">
+        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3l6 6M9 3l-6 6"/></svg>
+      </button>
+      <h1 id="title" class="silver">Editor</h1>
+      <span class="file mono" id="file"></span>
+    </header>
+
+    <main id="stage" class="stage">
+      <canvas id="view"></canvas>
+      <div id="overlay" class="overlay"></div>
+    </main>
+
+    <section id="controls" class="controls reflect"></section>
+
+    <footer class="footer">
+      <button id="cancel" class="ghost">Cancel</button>
+      <span id="meta" class="meta mono"></span>
+      <button id="save" class="pill primary">Save</button>
+    </footer>
+  </div>
+  <div id="toast" class="toast" hidden></div>
+  <script type="module" src="editor.js"></script>
+</body>
+</html>

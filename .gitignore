@@ -1,0 +1,16 @@
+# Dependencies: `npm install` brings them back
+node_modules/
+
+# Test and demo output (screenshots, contact sheets)
+.snap/
+live-demo/
+
+# Native helpers are compiled from src/native/*.cs on first run (csc ships with Windows)
+src/native/*.exe
+
+# Builds, logs, local secrets
+dist/
+out/
+*.log
+.env
+.env.*

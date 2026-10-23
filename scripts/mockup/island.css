@@ -1,0 +1,185 @@
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0d18; font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+body { text-shadow: none; }
+
+/* Dewdrop palette: pearl frost, plum ink, an oil-slick rim. */
+:root {
+  --ink: #3b1530;
+  --ink-soft: rgba(59, 21, 48, 0.72);
+  --frost: linear-gradient(180deg, rgba(255, 251, 253, 0.74) 0%, rgba(255, 241, 247, 0.62) 68%, rgba(255, 224, 237, 0.66) 100%);
+}
+@property --spin { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+
+/* ---------- fake desktop ---------- */
+.desk { position: relative; width: 900px; height: 330px; overflow: hidden; }
+.wall {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(60% 90% at 70% 120%, #2f62ff 0%, rgba(47, 98, 255, 0) 60%),
+    radial-gradient(40% 70% at 35% 110%, #4fa3ff 0%, rgba(79, 163, 255, 0) 60%),
+    radial-gradient(80% 60% at 20% 10%, #22284a 0%, rgba(34, 40, 74, 0) 70%),
+    linear-gradient(180deg, #0f1226 0%, #161b3d 55%, #1c2e7a 100%);
+}
+.wall::after {
+  content: ''; position: absolute; width: 900px; height: 600px; left: 180px; top: 170px; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(120, 170, 255, 0.55), rgba(40, 80, 220, 0.25) 60%, transparent 72%);
+  filter: blur(8px);
+}
+.win { position: absolute; left: 70px; top: 120px; width: 420px; height: 240px; border-radius: 10px; background: #1d1f26; box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06); }
+.win-bar { height: 34px; display: flex; align-items: center; gap: 7px; padding: 0 12px; color: #cfd3dc; font: 12px 'Segoe UI', sans-serif; }
+.win-bar i { width: 9px; height: 9px; border-radius: 50%; background: #3a3d48; }
+.win-bar span { margin-left: 8px; }
+.files { display: flex; gap: 18px; padding: 18px 22px; }
+.f { display: flex; flex-direction: column; align-items: center; gap: 6px; font: 11px 'Segoe UI', sans-serif; color: #d8dbe3; }
+.f img { width: 84px; height: 64px; object-fit: cover; border-radius: 4px; }
+.f b { font-weight: 400; }
+
+/* ---------- the dewdrop ---------- */
+body[data-state="idle"]    { --w: 54px;  --h: 56px;  --r: 27px; }
+body[data-state="hover"]   { --w: 560px; --h: 170px; --r: 32px; }
+body[data-state="drag"]    { --w: 620px; --h: 196px; --r: 36px; }
+body[data-state="work"]    { --w: 340px; --h: 52px;  --r: 26px; }
+body[data-state="done"]    { --w: 420px; --h: 62px;  --r: 31px; }
+body[data-state="suggest"] { --w: 650px; --h: 66px;  --r: 33px; }
+body[data-state="error"]   { --w: 330px; --h: 56px;  --r: 28px; }
+
+.dew {
+  --f: 14px; /* fillet radius where the drop meets the screen edge */
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: var(--w); height: var(--h); border-radius: 0 0 var(--r) var(--r);
+  background: var(--frost);
+  backdrop-filter: blur(20px) saturate(1.9) brightness(1.06);
+  box-shadow: inset 0 -12px 22px -8px rgba(255, 168, 204, 0.5), inset 0 -1px 0 rgba(255, 255, 255, 0.9), 0 18px 40px -14px rgba(40, 10, 60, 0.5);
+  color: var(--ink);
+}
+/* Surface tension: concave fillets so the drop flows out of the top edge instead of sitting under it. */
+.fillet { position: absolute; top: 0; width: var(--f); height: var(--f); background: rgba(255, 250, 252, 0.72); backdrop-filter: blur(20px) saturate(1.9); }
+.fillet.l { left: calc(-1 * var(--f)); -webkit-mask: radial-gradient(circle at 0 100%, transparent var(--f), #000 calc(var(--f) + 0.5px)); }
+.fillet.r { right: calc(-1 * var(--f)); -webkit-mask: radial-gradient(circle at 100% 100%, transparent var(--f), #000 calc(var(--f) + 0.5px)); }
+/* Oil-slick rim: a thin iridescent edge whose colours slowly travel around the drop. */
+.dew::before {
+  content: ''; position: absolute; inset: -3px 0 0 0; border-radius: inherit; padding: 1.5px; pointer-events: none;
+  background: conic-gradient(from var(--spin), #ffc4d8, #d8c4ff, #bff0e0, #ffe0c4, #ffc4d8);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  animation: spin 8s linear infinite;
+}
+@keyframes spin { to { --spin: 360deg; } }
+/* A specular streak drifting across the frost. */
+.lens {
+  position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.55) 42%, transparent 52%) -200px 0 / 200% 100% no-repeat;
+  animation: streak 6s var(--ease) infinite;
+  mix-blend-mode: soft-light;
+}
+@keyframes streak { 0%, 40% { background-position: 120% 0; } 100% { background-position: -80% 0; } }
+
+/* Pink light thrown onto the desktop below the drop. */
+.caustic {
+  position: absolute; left: 50%; transform: translateX(-50%); top: calc(var(--h) - 6px);
+  width: calc(var(--w) * 0.9 + 30px); height: 54px; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(255, 150, 200, 0.55), rgba(200, 160, 255, 0.22) 55%, transparent);
+  filter: blur(10px); mix-blend-mode: screen; pointer-events: none;
+}
+
+.s { display: none; position: absolute; inset: 0; align-items: center; }
+body[data-state="idle"] .s-idle, body[data-state="work"] .s-work, body[data-state="done"] .s-done,
+body[data-state="suggest"] .s-suggest, body[data-state="error"] .s-error, body[data-state="drag"] .s-drag { display: flex; }
+body[data-state="hover"] .s-hover { display: flex; }
+
+.bud { width: 32px; height: 32px; flex: none; }
+.bud.sm { width: 26px; height: 26px; }
+.title { font-family: var(--display); font-size: 16px; font-weight: 650; font-stretch: 90%; letter-spacing: -0.01em; color: var(--ink); }
+.mono { color: var(--ink-soft) !important; }
+.txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.txt .mono, .s .mono { font-size: 9px; letter-spacing: 0.16em; }
+
+/* Glass beads: small clear pills that catch light, used for actions. */
+.bead {
+  display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border-radius: 999px; white-space: nowrap;
+  font: 550 12px var(--sans); color: var(--ink);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.85), rgba(255, 236, 244, 0.55));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.95), inset 0 -4px 8px rgba(255, 180, 210, 0.3), 0 3px 8px -2px rgba(120, 40, 90, 0.18);
+}
+.bead.hot { color: #fff; background: linear-gradient(180deg, #ff9cc0, #e86aa0); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6), 0 0 0 3px rgba(255, 156, 192, 0.25), 0 8px 18px -4px rgba(232, 106, 160, 0.6); transform: translateY(-2px) scale(1.05); }
+.bead.off { opacity: 0.38; }
+.ink { border: 0; height: 30px; padding: 0 15px; border-radius: 999px; font: 600 12.5px var(--display); font-stretch: 92%; color: #fff; background: var(--ink); box-shadow: 0 4px 12px -4px rgba(59, 21, 48, 0.6); }
+.ink.soft { color: var(--ink); background: rgba(59, 21, 48, 0.08); box-shadow: inset 0 0 0 1px rgba(59, 21, 48, 0.1); }
+.x { border: 0; background: none; color: var(--ink-soft); font-size: 18px; width: 26px; }
+
+/* 01 idle: just a drop with a bud inside */
+.s-idle { justify-content: center; padding-top: 6px; }
+.s-idle .bud { width: 36px; height: 36px; }
+
+/* 02 hover */
+.s-hover { flex-direction: column; align-items: stretch; padding: 12px 18px 16px; gap: 12px; }
+.s-hover header { display: flex; align-items: center; gap: 10px; }
+.tabs { display: flex; gap: 2px; flex: 1; }
+.tab { border: 0; border-radius: 999px; padding: 6px 12px; font: 550 12px var(--sans); color: var(--ink-soft); background: none; }
+.tab.on { color: var(--ink); background: rgba(255, 255, 255, 0.75); box-shadow: inset 0 0 0 1px #fff, 0 2px 6px -2px rgba(120, 40, 90, 0.2); }
+.recent { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.card {
+  display: grid; grid-template-columns: 60px 1fr; grid-template-rows: auto auto; column-gap: 10px; align-items: center;
+  padding: 8px; border-radius: 18px; background: rgba(255, 255, 255, 0.5); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.9), 0 6px 14px -8px rgba(120, 40, 90, 0.3);
+}
+.card .thumb { grid-row: span 2; }
+.card b { font: 600 12px var(--sans); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; align-self: end; }
+.card .mono { align-self: start; font-size: 8.5px; }
+.thumb { width: 60px; height: 46px; border-radius: 12px; overflow: hidden; display: grid; place-items: center; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.9), 0 6px 12px -6px rgba(60, 10, 40, 0.5); background: #2a1222; }
+.thumb img { width: 100%; height: 100%; object-fit: cover; }
+.thumb.checker { background: repeating-conic-gradient(#f3e4ea 0 25%, #fff 0 50%) 0 0 / 10px 10px; }
+.thumb.checker img { object-fit: contain; }
+.thumb.pdf { background: linear-gradient(180deg, #fff, #ffe6ef); }
+.thumb.pdf svg { width: 22px; height: 22px; stroke: var(--ink); fill: none; stroke-width: 1.6; }
+.thumb.mini { width: 54px; height: 40px; border-radius: 10px; }
+
+/* 03 drag */
+.s-drag { padding: 0 24px 0 8px; gap: 8px; }
+.bloom-wrap { width: 176px; height: 176px; flex: none; }
+.bud.big { width: 176px; height: 176px; }
+.drop { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+.drop-head { display: flex; justify-content: space-between; align-items: baseline; }
+.beads { display: flex; flex-wrap: wrap; gap: 7px; }
+
+/* 04 working: blush liquid rising inside the drop */
+.s-work { padding: 0 18px 0 10px; gap: 10px; }
+.rise { position: absolute; inset: 0; border-radius: 0 0 var(--r) var(--r); overflow: hidden; }
+.rise svg { position: absolute; left: 0; bottom: 0; width: 100%; height: 62%; }
+.rise path { fill: rgba(255, 150, 196, 0.32); }
+
+/* 05 done */
+.s-done { padding: 0 12px 0 14px; gap: 10px; }
+.acts { display: flex; align-items: center; gap: 6px; }
+
+/* 06 suggestion */
+.s-suggest { padding: 0 12px 0 10px; gap: 12px; }
+
+/* 07 error: the drop clouds over */
+.s-error { padding: 0 12px 0 10px; gap: 10px; }
+body[data-state="error"] .dew { background: linear-gradient(180deg, rgba(250, 244, 246, 0.74), rgba(236, 218, 224, 0.66)); }
+body[data-state="error"] .title { color: #7a2a33; }
+
+/* Drag: a tendril of glass reaching down toward the file being dragged. */
+.tendril { display: none; position: absolute; left: calc(50% + 150px); top: 188px; width: 120px; height: 120px; overflow: visible; filter: drop-shadow(0 8px 14px rgba(40, 10, 60, 0.4)); }
+.tendril path { fill: rgba(255, 244, 249, 0.78); stroke: rgba(255, 255, 255, 0.95); stroke-width: 1; }
+body[data-state="drag"] .tendril { display: block; }
+.ghost { display: none; position: absolute; width: 78px; height: 58px; object-fit: cover; border-radius: 8px; left: calc(50% + 228px); top: 266px; transform: rotate(-6deg); box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5); opacity: 0.92; }
+body[data-state="drag"] .ghost { display: block; }
+
+/* Done: the result hangs below the drop as a drip you can grab and drag anywhere. */
+.drip { display: none; position: absolute; left: 50%; top: calc(var(--h) - 4px); transform: translateX(-50%); flex-direction: column; align-items: center; gap: 10px; }
+body[data-state="done"] .drip { display: flex; }
+.drip-glass {
+  position: relative; width: 96px; height: 104px; display: grid; place-items: center; padding-top: 10px;
+  border-radius: 50% 50% 48% 48% / 34% 34% 66% 66%;
+  background: var(--frost); backdrop-filter: blur(18px) saturate(1.9);
+  box-shadow: inset 0 -12px 20px -8px rgba(255, 168, 204, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.85), 0 16px 34px -12px rgba(40, 10, 60, 0.55);
+  animation: sway 3.2s ease-in-out infinite; transform-origin: 50% -20px;
+}
+.drip-glass::before { /* the neck where the drip hangs from the drop */
+  content: ''; position: absolute; left: 50%; top: -12px; width: 22px; height: 18px; transform: translateX(-50%);
+  background: rgba(255, 246, 250, 0.8);
+  -webkit-mask: radial-gradient(circle at 0 100%, transparent 9px, #000 9.5px) left / 50% 100% no-repeat, radial-gradient(circle at 100% 100%, transparent 9px, #000 9.5px) right / 50% 100% no-repeat;
+}
+.drip .thumb { width: 64px; height: 50px; border-radius: 14px; }
+@keyframes sway { 50% { transform: rotate(3deg); } }
+.drip-cap { color: rgba(255, 236, 244, 0.85) !important; font-size: 8.5px; letter-spacing: 0.2em; }

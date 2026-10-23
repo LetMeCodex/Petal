@@ -1,0 +1,114 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: file:; style-src 'self' 'unsafe-inline'">
+  <title>Petal island</title>
+  <link rel="stylesheet" href="../theme/theme.css">
+  <link rel="stylesheet" href="island.css">
+  <link rel="stylesheet" href="ask.css">
+</head>
+<body data-state="idle">
+  <div class="caustic" aria-hidden="true"></div>
+
+  <div class="dew" id="dew" title="Drag to move">
+    <i class="fillet l"></i><i class="fillet r"></i>
+    <div class="glass" id="glass"></div>
+    <div class="frost"></div>
+    <div class="lens"></div>
+    <!-- Idle pulse: a thin ring around the bud that fills with CPU load. -->
+    <svg class="pulse" id="pulse" viewBox="0 0 48 48" aria-hidden="true">
+      <defs><linearGradient id="pulseGrad" x1="0" x2="1" y1="0" y2="1"><stop offset="0" stop-color="#ff9cc0"/><stop offset="1" stop-color="#b48cff"/></linearGradient></defs>
+      <circle class="track" cx="24" cy="24" r="21"/>
+      <circle class="arc" id="pulseArc" cx="24" cy="24" r="21"/>
+    </svg>
+    <canvas class="bud" id="bud"></canvas>
+
+    <section class="s s-hover" aria-label="Petal">
+      <header>
+        <nav class="tabs" role="tablist" id="tabs">
+          <span class="tab-ink" id="tabInk" aria-hidden="true"></span>
+          <button class="tab on" data-tab="glance" role="tab">Glance</button>
+          <button class="tab" data-tab="recent" role="tab">Recent</button>
+          <button class="tab" data-tab="texts" role="tab">Copied text</button>
+          <button class="tab" data-tab="settings" role="tab">Settings</button>
+        </nav>
+        <button class="ask-pill" id="askPill" type="button"><svg viewBox="0 0 24 24"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-4-4"/></svg>Ask<kbd id="askPillKey">Ctrl Ctrl</kbd></button>
+        <span class="mono" id="hoverMeta"></span>
+      </header>
+      <div class="pane" id="paneGlance"></div>
+      <div class="pane list" id="paneRecent" hidden></div>
+      <div class="pane list" id="paneTexts" hidden></div>
+      <div class="pane" id="paneSettings" hidden>
+        <div class="set-col">
+          <label class="sw-row"><span>Show island</span><button class="sw" data-pref="island" role="switch" aria-label="Show island"><i></i></button></label>
+          <label class="sw-row"><span>Live pulse when idle</span><button class="sw" data-pref="islandPulse" role="switch" aria-label="Live pulse when idle"><i></i></button></label>
+          <div class="sw-row"><span>Motion</span>
+            <div class="seg" id="motionSeg"><button data-motion="auto" title="Full, unless this PC is busy or slow">Auto</button><button data-motion="full">Full</button><button data-motion="calm">Calm</button></div>
+          </div>
+          <div class="sw-row"><span>Ask shortcut</span>
+            <div class="seg" id="askKeySeg"><button data-key="DoubleCtrl" title="Tap Ctrl twice, anywhere">Ctrl Ctrl</button><button data-key="custom" id="askKeyCustom" title="Press the keys you want">Custom</button></div>
+          </div>
+          <span class="set-note mono" id="askKeyNote"></span>
+        </div>
+        <div class="set-col">
+          <span class="mono">Widgets</span>
+          <div class="wchips" id="widgetChips"></div>
+          <div class="set-acts">
+            <button class="ink soft" id="resetPos">Reset position</button>
+            <button class="ink soft" id="triggerBtn">Trigger key</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="s s-drag">
+      <div class="bloom-wrap"><canvas id="bloom"></canvas></div>
+      <div class="drop">
+        <div class="drop-head"><span class="title" id="dropTitle">Let go on a petal</span><span class="mono" id="dropFile"></span></div>
+        <div class="beads" id="beads"></div>
+      </div>
+    </section>
+
+    <section class="s s-work">
+      <div class="rise"><svg viewBox="0 0 340 52" preserveAspectRatio="none"><path id="risePath" d=""/></svg></div>
+      <div class="txt"><span class="title" id="workTitle"></span><span class="mono" id="workSub"></span></div>
+    </section>
+
+    <section class="s s-done">
+      <div class="txt"><span class="title" id="doneTitle"></span><span class="mono" id="doneSub"></span></div>
+      <div class="acts" id="doneActs"><button class="ink" id="openBtn">Open</button><button class="ink soft" id="folderBtn">Folder</button></div>
+    </section>
+
+    <section class="s s-error">
+      <div class="txt"><span class="title" id="errTitle"></span><span class="mono" id="errSub"></span></div>
+    </section>
+
+    <!-- Ask: the drop opens into a command bar. -->
+    <section class="s s-ask" aria-label="Ask Petal">
+      <div class="ask">
+        <div class="ask-top">
+          <span class="ask-name">Ask Petal</span>
+          <span class="ctx" id="askCtx" hidden><i></i><b id="askCtxApp"></b><span id="askCtxDetail"></span><em>sees this window</em><button class="ctx-x" id="askCtxX" type="button" aria-label="Don't use this window">×</button></span>
+          <span class="ask-local mono"><svg viewBox="0 0 24 24"><path d="M7 11V8a5 5 0 0 1 10 0v3M5 11h14v10H5z"/></svg>On this PC</span>
+        </div>
+        <form class="ask-bar" id="askForm" autocomplete="off">
+          <input id="askInput" spellcheck="false" placeholder="Ask about your files… “files over 300 MB”, “duplicate photos”">
+          <button class="ask-go" id="askGo" aria-label="Ask"><svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+        </form>
+        <div class="ask-body" id="askBody"></div>
+        <div class="ask-foot mono"><span><kbd id="askKey">Ctrl Ctrl</kbd> anywhere</span><span><kbd>Esc</kbd> to close</span></div>
+      </div>
+    </section>
+  </div>
+
+  <svg class="tendril" id="tendril" aria-hidden="true"><path id="tendrilPath" d=""/></svg>
+
+  <div class="drip" id="drip">
+    <div class="drip-glass" id="dripGlass" draggable="true" title="Drag it into any app"><div class="thumb" id="dripThumb"></div></div>
+    <span class="mono drip-cap">Drag me anywhere</span>
+  </div>
+
+  <script type="module" src="island.js"></script>
+</body>
+</html>

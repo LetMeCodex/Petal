@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' file:; style-src 'self' 'unsafe-inline'">
+  <title>Petal</title>
+  <link rel="stylesheet" href="../theme/theme.css">
+  <link rel="stylesheet" href="onboarding.css">
+</head>
+<body>
+  <canvas class="bg" id="bg" aria-hidden="true"></canvas>
+  <header class="titlebar">
+    <span class="mono">Petal — first run</span>
+    <button id="close" class="dome close" aria-label="Close" title="Close">
+      <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M3 3l6 6M9 3l-6 6"/></svg>
+    </button>
+  </header>
+
+  <main class="sheet reflect">
+    <section class="hero">
+      <div class="bloom" id="bloom" aria-hidden="true"></div>
+      <h1 id="headline" aria-label="Drag. Tap. Bloom."><span class="word"><span class="ch" style="--n:0">D</span><span class="ch" style="--n:1">r</span><span class="ch" style="--n:2">a</span><span class="ch" style="--n:3">g</span><span class="ch" style="--n:4">.</span></span> <span class="word"><span class="ch" style="--n:5">T</span><span class="ch" style="--n:6">a</span><span class="ch" style="--n:7">p</span><span class="ch" style="--n:8">.</span></span> <span class="word accent"><span class="ch" style="--n:9">B</span><span class="ch" style="--n:10">l</span><span class="ch" style="--n:11">o</span><span class="ch" style="--n:12">o</span><span class="ch" style="--n:13">m</span><span class="ch" style="--n:14">.</span></span></h1>
+      <p class="lede">Drag a file, tap a key, and a flower of tools opens under your cursor. Drop it on a petal.</p>
+    </section>
+
+    <section class="setup">
+      <div class="label-row"><span class="mono">Trigger key</span><span class="mono dim">Pressed mid-drag</span></div>
+      <div class="cards" role="radiogroup" aria-label="Trigger">
+        <button class="card reflect" role="radio" data-trigger="shift">
+          <span class="cap dome">⇧</span>
+          <strong>Shift</strong>
+          <span>Tap once while dragging.</span>
+          <span class="badge mono">Recommended</span>
+        </button>
+        <button class="card reflect" role="radio" data-trigger="ctrl">
+          <span class="cap dome">Ctrl</span>
+          <strong>Ctrl</strong>
+          <span>If Shift is already taken.</span>
+        </button>
+        <button class="card reflect" role="radio" data-trigger="dwell">
+          <span class="cap dome">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 7v5l3 2M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18z"/></svg>
+          </span>
+          <strong>Pause</strong>
+          <span>No key. Hold still for half a second.</span>
+        </button>
+        <button class="card reflect" role="radio" data-trigger="custom">
+          <span class="cap dome">?</span>
+          <strong id="customLabel">Custom</strong>
+          <span id="customHint">Click, then press any key except Esc.</span>
+        </button>
+      </div>
+      <p class="warn" id="warn">Tap Shift and let go. Holding it while you drop tells Explorer to <em>move</em> the file.</p>
+
+      <div class="label-row"><span class="mono">Practice</span><span class="mono dim">Uses a sample picture</span></div>
+      <div class="zone reflect" id="zone">
+        <img id="sample" alt="" draggable="true">
+        <div>
+          <strong>Drag this picture</strong>
+          <span id="practiceHint">then tap <kbd>Shift</kbd> while you're still holding the mouse.</span>
+        </div>
+      </div>
+
+      <footer>
+        <label class="island-toggle">
+          <button class="sw" id="islandSw" role="switch" aria-checked="true" aria-label="Show Petal Island"><i></i></button>
+          <span><strong>Petal Island</strong><span class="muted">The live drop at the top of your screen. Also in the tray menu.</span></span>
+        </label>
+        <div class="cta">
+          <span class="dome arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          <button id="done" class="pill reflect"><span class="silver">Start using Petal</span></button>
+        </div>
+      </footer>
+    </section>
+  </main>
+  <script src="onboarding.js"></script>
+  <script type="module" src="living.js"></script>
+</body>
+</html>
