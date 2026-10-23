@@ -1,21 +1,14 @@
 // Global mouse/keyboard events from native/hook.exe (a tiny C# low-level hook).
 // uiohook-napi can't register its hooks on current Windows 11 builds (SetWindowsHookEx -> 0x7E),
 // and a separate process also keeps a stuck hook from ever freezing input for the app itself.
-const fs = require('fs');
-const path = require('path');
 const readline = require('readline');
-const { spawn, execFileSync } = require('child_process');
+const { spawn } = require('child_process');
+const native = require('./native');
 const { EventEmitter } = require('events');
 
 const VK = { Shift: 0x10, Ctrl: 0x11, Alt: 0x12, Escape: 0x1b };
-const SRC = path.join(__dirname, 'native', 'hook.cs');
-const EXE = path.join(__dirname, 'native', 'hook.exe');
-const CSC = path.join(process.env.WINDIR || 'C:\\Windows', 'Microsoft.NET', 'Framework64', 'v4.0.30319', 'csc.exe');
-
-function ensureBuilt() {
-  if (fs.existsSync(EXE) && fs.statSync(EXE).mtimeMs >= fs.statSync(SRC).mtimeMs) return;
-  execFileSync(CSC, ['/nologo', '/target:exe', '/optimize', `/out:${EXE}`, SRC]);
-}
+const EXE = native.file('hook.exe');
+const ensureBuilt = (opts) => native.build('hook', [], opts);
 
 class Hook extends EventEmitter {
   // Every listener gets every event: one throwing listener must not stop the wheel from opening.

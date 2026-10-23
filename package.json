@@ -7,7 +7,6 @@
     "test": "electron scripts/selftest.js",
     "start": "electron .",
     "snap": "electron scripts/snapshot.js .snap",
-    "build:hook": "node -e \"require('./src/hook').ensureBuilt()\"",
     "test:editors": "electron scripts/editor-test.js",
     "test:tier2": "electron scripts/tier2-test.js",
     "test:island": "electron scripts/island-test.js",
@@ -15,19 +14,27 @@
     "test:perf": "electron scripts/perf-test.js",
     "test:hook": "node scripts/hook-cost-test.js",
     "test:drag": "electron scripts/island-drag-test.js",
-    "test:ask": "node scripts/ask-parse-test.js && node scripts/doubletap-test.js && electron scripts/ask-engine-test.js && electron scripts/ask-ui-test.js"
+    "test:ask": "node scripts/ask-parse-test.js && node scripts/doubletap-test.js && electron scripts/ask-engine-test.js && electron scripts/ask-ui-test.js",
+    "build:native": "node scripts/build-native.js",
+    "dist": "node scripts/build-native.js && electron-builder --win nsis --publish never",
+    "release": "node scripts/build-native.js && electron-builder --win nsis --publish always"
   },
   "keywords": [],
-  "author": "",
+  "author": {
+    "name": "LetMeCodex",
+    "email": "akj8183@gmail.com"
+  },
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "electron": "^38.8.6"
+    "electron": "^38.8.6",
+    "electron-builder": "^26.15.3"
   },
   "dependencies": {
     "@fontsource-variable/bricolage-grotesque": "^5.3.0",
     "@fontsource-variable/geist": "^5.3.0",
     "@fontsource-variable/geist-mono": "^5.3.0",
+    "electron-updater": "^6.8.9",
     "onnxruntime-node": "^1.30.0",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^4.10.38",
@@ -38,5 +45,66 @@
     "onnxruntime-node": false,
     "electron@38.8.6": true
   },
-  "productName": "Petal"
+  "productName": "Petal",
+  "homepage": "https://github.com/LetMeCodex/Petal",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LetMeCodex/Petal.git"
+  },
+  "build": {
+    "appId": "com.letmecodex.petal",
+    "productName": "Petal",
+    "copyright": "Copyright © 2026 LetMeCodex",
+    "directories": {
+      "output": "dist",
+      "buildResources": "assets"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json",
+      "!node_modules/onnxruntime-node/bin/napi-v*/{darwin,linux}/**",
+      "!node_modules/onnxruntime-node/bin/napi-v*/win32/arm64/**"
+    ],
+    "asarUnpack": [
+      "src/native/**",
+      "node_modules/onnxruntime-node/**",
+      "node_modules/sharp/**",
+      "node_modules/@img/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.png",
+      "artifactName": "Petal-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Petal",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico",
+      "include": "assets/installer.nsh"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "LetMeCodex",
+        "repo": "Petal",
+        "releaseType": "release"
+      }
+    ]
+  }
 }

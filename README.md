@@ -10,7 +10,13 @@ Petal is a Windows tray app built with Electron:
 
 Everything runs on your PC. Nothing is uploaded.
 
-## Run
+## Install
+
+Download `Petal-Setup-x.y.z.exe` from [Releases](https://github.com/LetMeCodex/Petal/releases) and run it. It installs for your user only (no admin), adds Start menu and Desktop shortcuts, starts with Windows (tray: **Start with Windows**), and updates itself from Releases. Uninstall from Windows Settings → Apps; your settings stay in `%APPDATA%\Petal`.
+
+The installer isn't code-signed yet, so Windows SmartScreen may say "Windows protected your PC". Choose **More info → Run anyway**.
+
+## Run from source
 
 ```bash
 npm install
@@ -18,6 +24,14 @@ npm start
 ```
 
 Windows 10/11 only. The two small native helpers (`src/native/*.cs`) are compiled on first run with the C# compiler that ships with Windows.
+
+## Build the installer
+
+```bash
+npm run dist        # dist/Petal-Setup-<version>.exe, plus latest.yml for updates
+```
+
+To publish an update: bump `version` in `package.json`, then run `npm run release` with a GitHub token that can write releases (`set GH_TOKEN=...`). That uploads the installer, `latest.yml` and the blockmap to a GitHub Release, and installed copies pick it up within six hours.
 
 ## Test
 

@@ -8,6 +8,7 @@ const { migrate } = require('./migrate');
 const recent = require('./recent');
 const { createIsland } = require('./island-main');
 const { createAskHost } = require('./ask/host');
+const { startUpdates } = require('./updater');
 
 // Pin the data folder to %APPDATA%\Petal regardless of how the app is launched (npm start, packaged exe).
 app.setName('Petal');
@@ -18,7 +19,7 @@ const DRAG_THRESHOLD = 8; // px of movement before a held button counts as a dra
 
 if (!app.requestSingleInstanceLock()) app.quit();
 
-let wheel, onboarding, tray, island, ask;
+let wheel, onboarding, tray, island, ask, updates;
 let paused = false;
 
 // ---------- drag + trigger detection (global low-level hooks) ----------
@@ -242,6 +243,12 @@ function setIslandVisible(on) {
   island?.setVisible(on);
   islandSwitched();
 }
+function setStartAtLogin(on) {
+  settings.set({ startAtLogin: on });
+  if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: on, path: process.execPath, name: 'Petal' });
+  buildTrayMenu();
+}
+
 // The island can be switched from three places (tray, Settings window, the island's own Settings
 // tab); keep the other two showing the truth.
 function islandSwitched() {
@@ -257,7 +264,10 @@ function buildTrayMenu() {
     { label: `Ask Petal${ask?.key() ? ` (${ask.key()})` : ''}`, click: () => ask?.open() },
     // Flip from the saved value, not item.checked: the island can be switched off from its own Settings tab.
     { label: 'Show island', type: 'checkbox', checked: settings.get().island !== false, click: () => setIslandVisible(settings.get().island === false) },
+    // Only the installed app registers itself (a dev run would register electron.exe).
+    ...(app.isPackaged ? [{ label: 'Start with Windows', type: 'checkbox', checked: settings.get().startAtLogin !== false, click: () => setStartAtLogin(settings.get().startAtLogin === false) }] : []),
     { type: 'separator' },
+    ...(updates?.state() ? [{ label: `Restart to update to ${updates.state()}`, click: () => updates.install() }] : []),
     { label: 'Quit', click: () => app.quit() },
   ]));
   tray.setToolTip(paused ? 'Petal (paused)' : 'Petal: drag a file, then tap your trigger key');
@@ -276,6 +286,8 @@ app.whenReady().then(async () => {
   tray.on('click', openOnboarding);
   buildTrayMenu();
   startHooks();
+  if (app.isPackaged) app.setLoginItemSettings({ openAtLogin: settings.get().startAtLogin !== false, path: process.execPath, name: 'Petal' });
+  updates = startUpdates({ onReady: buildTrayMenu });
   if (!settings.get().onboarded) openOnboarding();
 });
 

@@ -13,6 +13,7 @@ const DEFAULTS = {
   // Live widgets on the island's Glance tab.
   widgets: { cpu: true, gpu: true, ram: true, net: true, battery: true, clock: true },
   islandPulse: true,      // a thin CPU ring around the idle drop
+  startAtLogin: true,     // the installed app starts with Windows (tray: Start with Windows)
   // 'auto': full animations, dropping to calm on weak machines or when frames run slow. 'full' | 'calm' force it.
   motion: 'auto',
   motionV: 2,

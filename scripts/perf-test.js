@@ -73,7 +73,7 @@ app.whenReady().then(async () => {
     await setup();
     await wait(2200);                         // let transitions finish and the bud settle
     if (process.env.PERF_DEBUG) {
-      await island.webContents.executeJavaScript(`window.__rafN = 0; window.__rafBy = {}; if (!window.__rafWrapped) { window.__rafWrapped = 1; const o = requestAnimationFrame; window.requestAnimationFrame = (f) => { window.__rafN++; const k = (f.name || 'anon') + ':' + String(f).slice(0, 40).replace(/s+/g, ' '); (window.__rafBy ||= {})[k] = (window.__rafBy[k] || 0) + 1; return o(f); }; } 0`);
+      await island.webContents.executeJavaScript(`window.__rafN = 0; window.__rafBy = {}; if (!window.__rafWrapped) { window.__rafWrapped = 1; const o = requestAnimationFrame; window.requestAnimationFrame = (f) => { window.__rafN++; const k = (f.name || 'anon') + ':' + String(f).slice(0, 40).replace(/\\s+/g, ' '); (window.__rafBy ||= {})[k] = (window.__rafBy[k] || 0) + 1; return o(f); }; } 0`);
     }
     if (process.env.PERF_DEBUG) island.webContents.executeJavaScript(`window.__seen = {}; window.__probe = setInterval(() => { for (const a of document.getAnimations()) if (a.playState === 'running') { const k = (a.animationName || a.transitionProperty) + '@' + (a.effect?.target?.id || a.effect?.target?.className?.baseVal || a.effect?.target?.className); window.__seen[k] = (window.__seen[k] || 0) + 1; } }, 300); 0`);
     const r = await measure();

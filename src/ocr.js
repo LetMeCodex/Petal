@@ -5,7 +5,7 @@ const path = require('path');
 const { execFile } = require('child_process');
 const sharp = require('sharp');
 
-const SCRIPT = path.join(__dirname, 'native', 'ocr.ps1');
+const SCRIPT = require('./native').file('ocr.ps1');   // unpacked next to app.asar when installed
 const MAX_SIDE = 9000; // a little under OcrEngine.MaxImageDimension
 
 function runScript(files) {

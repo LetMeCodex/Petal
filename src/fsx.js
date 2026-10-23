@@ -1,17 +1,10 @@
 // Node side of native/fs.exe (see fs.cs): one request per run, results streamed back line by line.
-const fs = require('fs');
-const path = require('path');
 const readline = require('readline');
-const { spawn, execFileSync } = require('child_process');
+const { spawn } = require('child_process');
+const native = require('./native');
 
-const SRC = path.join(__dirname, 'native', 'fs.cs');
-const EXE = path.join(__dirname, 'native', 'fs.exe');
-const CSC = path.join(process.env.WINDIR || 'C:\\Windows', 'Microsoft.NET', 'Framework64', 'v4.0.30319', 'csc.exe');
-
-function ensureBuilt() {
-  if (fs.existsSync(EXE) && fs.statSync(EXE).mtimeMs >= fs.statSync(SRC).mtimeMs) return;
-  execFileSync(CSC, ['/nologo', '/optimize', '/r:System.Web.Extensions.dll', `/out:${EXE}`, SRC]);
-}
+const EXE = native.file('fs.exe');
+const ensureBuilt = (opts) => native.build('fs', ['/r:System.Web.Extensions.dll'], opts);
 
 // Runs one request. `onItem` sees each result as it arrives (so lists can fill in live).
 // Resolves with { items, done } once the helper finishes; `cancel()` stops it early.
