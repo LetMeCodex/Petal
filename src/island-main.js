@@ -63,6 +63,9 @@ function createIsland({ recent, cropBackdrop, captureBackdrop, openSettings, set
     webPreferences: { preload: path.join(__dirname, 'preload.js') },
   });
   win.setAlwaysOnTop(true, 'pop-up-menu');
+  // Back to the very top when it's needed (drop zone, Ask): a window shown without activating keeps
+  // its old place among always-on-top windows and could sit behind the one you're working in.
+  const raise = () => { win.setAlwaysOnTop(true, 'pop-up-menu'); win.moveTop(); };
   win.loadFile(path.join(__dirname, 'island', 'island.html'));
 
   const send = (ch, ...args) => { if (!win.isDestroyed()) win.webContents.send(ch, ...args); };
@@ -162,6 +165,7 @@ function createIsland({ recent, cropBackdrop, captureBackdrop, openSettings, set
       magnet = inside;
       dropped = false;
       setInteractive(inside);       // must accept the OLE drop, so stop being click-through
+      if (inside) raise();
       send('island:drag', inside);
       if (inside) Promise.resolve(captureBackdrop()).then(sendBackdrop);
     }
@@ -224,6 +228,7 @@ function createIsland({ recent, cropBackdrop, captureBackdrop, openSettings, set
     askOpen = true;
     rendererState = 'ask';
     if (!win.isVisible()) win.showInactive();
+    raise();
     setInteractive(true);
     win.setFocusable(true);
     win.focus();

@@ -1,6 +1,6 @@
 {
   "name": "petal",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Drag. Tap. Bloom. Drop a file on a petal to convert, compress, crop, clean or remove its background.",
   "main": "src/main.js",
   "scripts": {

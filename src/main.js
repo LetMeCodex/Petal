@@ -142,7 +142,12 @@ function showWheel() {
   wheelOpen = true;
   wheel.webContents.send('wheel:open');
   sendBackdrop();
+  // Above everything, every time: Windows keeps a hidden window's old place among always-on-top
+  // windows, and showing it without activating doesn't bring it forward, so it could open behind
+  // the window you're dragging from.
+  wheel.setAlwaysOnTop(true, 'screen-saver');
   wheel.showInactive();
+  wheel.moveTop();
   if (process.env.PETAL_DEBUG) console.log('[wheel] shown at', JSON.stringify(wheel.getBounds()));
 }
 

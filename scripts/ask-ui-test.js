@@ -143,6 +143,11 @@ app.whenReady().then(async () => {
     await wait(600);
     await shot('6c-freed');
     check('Free now asks first, then frees', confirmShown && /freed/.test(await js(`return document.querySelector('.dtext b').textContent`)), await js(`return document.querySelector('.dtext').textContent`));
+    // Bring the single removal back out of the Recycle Bin first. Recreating it instead would leave
+    // its copy in the user's bin for good (the final Undo refuses to overwrite a file that's back).
+    for (const id of [...trashed]) await engine.undo(id);
+    trashed.length = 0;
+    // The batch freed for good is gone; make those files again for the steps below.
     for (const f of ['Xcode_26_beta.zip', 'Desktop/Projects/Motion_Promo_v12.aep', 'Documents/iPhone_Backup_Sept.zip', 'Music/Logic_Session_Bounce.wav', 'Downloads/Sonoma_Installer.iso']) if (!fs.existsSync(path.join(root, f))) await put(f, 4.2 * MB, 7);
 
     // 5) Duplicates.
