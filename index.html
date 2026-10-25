@@ -1,0 +1,1625 @@
+<!DOCTYPE html>
+<html lang="en" class="dark" data-motion="full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Petal: Drag. Tap. Bloom.</title>
+  <meta name="description" content="A free Windows app for working with files by dragging them onto a 3D glass flower of tools — with Petal Island and Petal Ask. 100% local on your PC." />
+  <meta property="og:title" content="Petal: Drag. Tap. Bloom." />
+  <meta property="og:description" content="Drag any file, tap Shift, and a 3D glass flower of 10 tools opens under your cursor. Free for Windows 10 & 11." />
+  <meta property="og:image" content="./public/og-xray.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <!-- Fonts: Bricolage Grotesque (Variable wdth + wght), Geist, JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,300..800&family=Geist:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS CDN for standalone file:// execution -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            display: ['"Bricolage Grotesque"', 'sans-serif'],
+            sans: ['"Geist"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            paper: '#0c0b0d',
+            xray: '#dfe9ff',
+            petalPink: '#f4a7c0',
+            petalBlush: '#ffd3e0',
+            petalLilac: '#c9a6ff',
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Three.js r170, GSAP 3.13 + ScrollTrigger +CustomEase, Lenis -->
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/CustomEase.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.20/dist/lenis.min.js"></script>
+
+  <style>
+    :root {
+      --bg-paper: #0c0b0d;
+      --xray-primary: #dfe9ff;
+      --color-pink: #f4a7c0;
+      --color-blush: #ffd3e0;
+      --color-lilac: #c9a6ff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: #0c0b0d;
+      color: #eef3ff;
+      font-family: 'Geist', system-ui, sans-serif;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    ::selection {
+      background: rgba(244, 167, 192, 0.3);
+      color: #ffd3e0;
+    }
+
+    *:focus-visible {
+      outline: 1px solid #ffffff !important;
+      outline-offset: 4px !important;
+      box-shadow: 0 0 0 3px rgba(244, 167, 192, 0.35) !important;
+    }
+
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Odometer Rolling Digits */
+    .odometer-digit-col {
+      display: inline-block;
+      height: 1em;
+      width: 0.62em;
+      overflow: hidden;
+      vertical-align: baseline;
+      position: relative;
+    }
+    .odometer-ribbon {
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.52s cubic-bezier(0.16, 1, 0.3, 1);
+      will-change: transform;
+    }
+    html[data-motion="calm"] .odometer-ribbon {
+      transition: none !important;
+    }
+    .odometer-cell {
+      height: 1em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
+    /* Specimen inline word hover */
+    .specimen-word {
+      position: relative;
+      display: inline-block;
+      cursor: crosshair;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.42);
+      color: #ffffff;
+      padding: 0 2px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .specimen-word:hover {
+      color: #ffd3e0;
+      border-color: #f4a7c0;
+    }
+    .specimen-word .specimen-badge {
+      pointer-events: none;
+      position: absolute;
+      left: 50%;
+      top: -34px;
+      transform: translateX(-50%) translateY(6px) scale(0.95);
+      opacity: 0;
+      white-space: nowrap;
+      padding: 2px 8px;
+      background: rgba(12, 11, 13, 0.96);
+      border: 1px solid rgba(255, 255, 255, 0.65);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      color: #dfe9ff;
+      z-index: 40;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .specimen-word:hover .specimen-badge {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0) scale(1);
+    }
+    .specimen-word .specimen-badge::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      bottom: -9px;
+      transform: translateX(-50%);
+      width: 1px;
+      height: 9px;
+      background: rgba(255, 255, 255, 0.6);
+    }
+
+    /* HUD Chip with 4px hollow circle nodes */
+    .hud-chip {
+      position: relative;
+      display: inline-flex;
+      flex-direction: column;
+      padding: 6px 10px;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      background: rgba(223, 233, 255, 0.06);
+      font-family: 'JetBrains Mono', monospace;
+      user-select: none;
+      transition: border-color 0.25s, background-color 0.25s;
+    }
+    .hud-chip:hover, .hud-chip.active {
+      border-color: #f4a7c0;
+      background: rgba(244, 167, 192, 0.14);
+    }
+    .hud-chip::before, .hud-chip::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 5px;
+      height: 5px;
+      border-radius: 9999px;
+      background: #0c0b0d;
+      border: 1px solid rgba(255, 255, 255, 0.85);
+    }
+    .hud-chip::before { left: -3px; }
+    .hud-chip::after { right: -3px; }
+
+    /* Checkerboard for transparent cutout inside lens */
+    .checker-grid {
+      background-image:
+        linear-gradient(45deg, rgba(255,255,255,0.045) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255,255,255,0.045) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.045) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.045) 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    }
+    /* Mono labels riding on the real flower's petals (petal-live.js). */
+    .petal-tag { position: absolute; left: 0; top: 0; padding: 1px 5px; white-space: nowrap; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: .02em;
+      color: rgba(238, 243, 255, .9); background: rgba(12, 11, 13, .72); border: 1px solid rgba(255, 255, 255, .35); will-change: transform, opacity; }
+    .petal-tag.hot { color: #ffd3e0; border-color: #ffd3e0; background: rgba(244, 167, 192, .22); }
+    @media (max-width: 767px) { .petal-tag { display: none; } }
+  </style>
+</head>
+<body class="bg-[#0c0b0d] text-[#eef3ff] select-none">
+
+  <!-- =====================================================================
+       SCENE 00: PRELOADER (<= 1.6s DrawSVG circle + 4-petal glyph + FLIP to Hero Lens)
+       ===================================================================== -->
+  <div id="preloader" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#0c0b0d] pointer-events-none">
+    <div id="preloader-morph" class="relative flex items-center justify-center w-[180px] h-[180px] rounded-full border border-white/85">
+      <svg viewBox="0 0 180 180" class="absolute inset-0 w-full h-full -rotate-90">
+        <circle id="preloader-circle" cx="90" cy="90" r="88" fill="none" stroke="#dfe9ff" stroke-width="1.2" stroke-dasharray="553" stroke-dashoffset="553" />
+      </svg>
+      <div id="preloader-glyph" class="text-[#eef3ff] scale-50 opacity-0">
+        <svg viewBox="0 0 36 36" fill="none" class="w-11 h-11">
+          <path d="M18 18 C13 11, 7 11, 7 15.5 C7 18, 12 18, 18 18 Z" stroke="currentColor" stroke-width="1.25"/>
+          <path d="M18 18 C13 25, 7 25, 7 20.5 C7 18, 12 18, 18 18 Z" stroke="currentColor" stroke-width="1.25"/>
+          <path d="M18 18 C23 11, 29 11, 29 15.5 C29 18, 24 18, 18 18 Z" stroke="currentColor" stroke-width="1.25"/>
+          <path d="M18 18 C23 25, 29 25, 29 20.5 C29 18, 24 18, 18 18 Z" stroke="currentColor" stroke-width="1.25"/>
+          <circle cx="18" cy="18" r="1.8" fill="#f4a7c0"/>
+        </svg>
+      </div>
+    </div>
+    <div id="preloader-meta" class="mt-6 flex flex-col items-center gap-1.5 font-mono text-center">
+      <div class="text-[14px] tracking-[0.22em] text-white tabular-nums">
+        <span id="preloader-count">000</span><span class="text-white/40"> / 100</span>
+      </div>
+      <div id="preloader-asset" class="text-[11px] tracking-[0.08em] text-[#dfe9ff]/70">
+        scanning flower.glb …
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       GLOBAL FILM GRAIN (12 FPS BREATHING PASS) + RADIAL VIGNETTE
+       ===================================================================== -->
+  <div aria-hidden="true" class="pointer-events-none fixed inset-0 z-30 overflow-hidden">
+    <div id="film-grain-layer" class="absolute -inset-16 opacity-[0.052] mix-blend-screen will-change-transform" style="background-image: url('./public/grain.png'); background-repeat: repeat; background-size: 196px 196px;"></div>
+    <div class="absolute inset-0" style="background: radial-gradient(circle at 50% 50%, transparent 54%, rgba(5, 4, 7, 0.68) 100%);"></div>
+  </div>
+
+  <!-- =====================================================================
+       OVERSIZED BACKGROUND CIRCLE ARCS (SENS.STORY POSTER GEOMETRY)
+       ===================================================================== -->
+  <svg aria-hidden="true" class="pointer-events-none fixed inset-0 w-screen h-screen z-20 overflow-visible">
+    <circle cx="88%" cy="6%" r="240" fill="none" stroke="rgba(255, 255, 255, 0.15)" stroke-width="1" />
+    <line x1="-4%" y1="16%" x2="48%" y2="-2%" stroke="rgba(255, 255, 255, 0.16)" stroke-width="1" />
+    <circle cx="4%" cy="94%" r="290" fill="none" stroke="rgba(255, 255, 255, 0.14)" stroke-width="1" />
+  </svg>
+
+  <!-- =====================================================================
+       CUSTOM HUD CURSOR (6px dot + lagging ring / lens frame / petal)
+       ===================================================================== -->
+  <div aria-hidden="true" class="pointer-events-none fixed inset-0 z-50 hidden md:block overflow-hidden">
+    <div id="cursor-dot" class="fixed top-0 left-0 -ml-[3px] -mt-[3px] w-[6px] h-[6px] rounded-full bg-white mix-blend-difference will-change-transform"></div>
+    <div id="cursor-ring-wrap" class="fixed top-0 left-0 will-change-transform">
+      <div id="cursor-ring-box" class="relative -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full border border-white/55 transition-all duration-200">
+        <span id="cursor-label" class="hidden absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap px-1.5 py-0.5 bg-[#0c0b0d]/95 border border-white/50 font-mono text-[9px] tracking-[0.06em] text-[#ffd3e0]"></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       FIXED 4-CORNER VIEWPORT HUD + OPTIONAL /LAB TUNER DRAWER
+       ===================================================================== -->
+  <header class="pointer-events-none fixed inset-x-0 top-0 z-40 flex items-center justify-between px-5 py-4 md:px-8 md:py-6">
+    <!-- Top-Left: PETAL.APP + LAB Toggle -->
+    <div class="pointer-events-auto flex items-center gap-3">
+      <a href="#scene-hero" data-cursor=".app" class="font-mono text-[12px] md:text-[13px] tracking-[0.12em] uppercase text-white hover:text-[#f4a7c0] transition-colors">
+        PETAL.APP
+      </a>
+      <button id="toggle-lab-btn" type="button" data-cursor=".lab" class="inline-flex items-center gap-1 px-2 py-0.5 border border-white/25 bg-white/[0.03] hover:border-[#f4a7c0]/70 font-mono text-[10px] tracking-[0.08em] text-white/70 hover:text-[#ffd3e0] transition-colors">
+        LAB
+      </button>
+    </div>
+
+    <!-- Top-Center: 4-Petal Botanical Glyph -->
+    <div class="pointer-events-auto flex items-center justify-center text-white/90 hover:text-[#f4a7c0] transition-colors">
+      <svg viewBox="0 0 36 36" fill="none" class="w-7 h-7" aria-hidden="true">
+        <path d="M18 18 C13 11, 7 11, 7 15.5 C7 18, 12 18, 18 18 Z" stroke="currentColor" stroke-width="1.25"/>
+        <path d="M18 18 C13 25, 7 25, 7 20.5 C7 18, 12 18, 18 18 Z" stroke="currentColor" stroke-width="1.25"/>
+        <path d="M18 18 C23 11, 29 11, 29 15.5 C29 18, 24 18, 18 18 Z" stroke="currentColor" stroke-width="1.25"/>
+        <path d="M18 18 C23 25, 29 25, 29 20.5 C29 18, 24 18, 18 18 Z" stroke="currentColor" stroke-width="1.25"/>
+        <path d="M14.5 9.5 C16 12, 18 15, 18 18 C18 15, 20 12, 21.5 9.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+        <path d="M14.5 26.5 C16 24, 18 21, 18 18 C18 21, 20 24, 21.5 26.5" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/>
+        <circle cx="4.5" cy="18" r="1.1" fill="currentColor"/>
+        <circle cx="31.5" cy="18" r="1.1" fill="currentColor"/>
+        <circle cx="18" cy="6.5" r="1.1" fill="currentColor"/>
+        <circle cx="18" cy="29.5" r="1.1" fill="currentColor"/>
+        <circle cx="18" cy="18" r="1.6" fill="#f4a7c0"/>
+      </svg>
+    </div>
+
+    <!-- Top-Right: Split-Flap Current Section Name (DROP, ISLAND, ASK, PRIVACY, DOWNLOAD) -->
+    <div id="corner-section-flap" class="pointer-events-auto inline-flex items-center gap-[1px] font-mono text-[12px] md:text-[13px] tracking-[0.12em] uppercase text-white"></div>
+  </header>
+
+  <!-- Interactive /LAB Storyboard Drawer (Toggleable via top-left LAB button) -->
+  <div id="lab-drawer" class="hidden fixed top-14 inset-x-0 z-40 mx-auto max-w-[1220px] px-5">
+    <div class="p-4 border border-white/75 bg-[#111016]/95 backdrop-blur-xl shadow-2xl flex flex-wrap items-center justify-between gap-4 font-mono text-xs">
+      <div class="flex items-center gap-2">
+        <span class="px-2 py-0.5 bg-[#f4a7c0]/25 border border-[#ffd3e0]/70 text-[#ffd3e0]">/LAB STORYBOARD</span>
+        <span class="text-white/70">JUMP &amp; SCRUB ANY SCENE:</span>
+      </div>
+      <div class="flex flex-wrap items-center gap-1.5">
+        <a href="#scene-hero" class="px-2 py-1 border border-white/25 hover:border-white">01.Hero</a>
+        <a href="#scene-drag" class="px-2 py-1 border border-white/25 hover:border-white">02.Drag</a>
+        <a href="#scene-petals" class="px-2 py-1 border border-white/25 hover:border-white">03.Petals</a>
+        <a href="#scene-island" class="px-2 py-1 border border-white/25 hover:border-white">04.Island</a>
+        <a href="#scene-ask" class="px-2 py-1 border border-white/25 hover:border-white">05.Ask</a>
+        <a href="#scene-privacy" class="px-2 py-1 border border-white/25 hover:border-white">06.Privacy</a>
+        <a href="#scene-light" class="px-2 py-1 border border-white/25 hover:border-white">07.Light</a>
+        <a href="#scene-download" class="px-2 py-1 border border-white/25 hover:border-white">08.Download</a>
+        <a href="#scene-footer" class="px-2 py-1 border border-white/25 hover:border-white">09.Footer</a>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-[#ffd3e0]">PAGE SCRUB:</span>
+        <input id="lab-global-scrub" type="range" min="0" max="100" step="0.2" value="0" class="w-40 accent-[#f4a7c0] cursor-ew-resize" />
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom Fixed Corners -->
+  <div class="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex items-end justify-between px-5 py-4 md:px-8 md:py-6">
+    <!-- Bottom-Left: FOR WINDOWS + SFX Toggle -->
+    <div class="pointer-events-auto flex items-center gap-3">
+      <span class="font-mono text-[12px] md:text-[13px] tracking-[0.12em] uppercase text-white/90">
+        FOR WINDOWS
+      </span>
+      <button id="sfx-toggle-btn" type="button" data-cursor="sfx.glass" aria-pressed="false" class="px-2 py-0.5 border border-white/25 bg-white/[0.03] font-mono text-[10px] tracking-[0.1em] uppercase text-white/55 hover:text-white/90 hover:border-white/55 transition-colors">
+        SFX:OFF
+      </button>
+    </div>
+
+    <!-- Bottom-Right: Live Scroll Readout 023.41 / 100 -->
+    <div class="pointer-events-auto flex items-center gap-1.5 font-mono text-[12px] md:text-[13px] tracking-[0.12em] text-white/90">
+      <span id="scroll-odometer" class="inline-flex items-baseline tabular-nums">000.00</span>
+      <span class="text-white/45">/ 100</span>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       MAIN SCROLL EXPERIENCE (SCENES 01 -> 09)
+       ===================================================================== -->
+  <main class="relative z-10">
+
+    <!-- ===================================================================
+         SCENE 01: HERO — "Drag. Tap. Bloom."
+         =================================================================== -->
+    <section id="scene-hero" data-section="DROP" class="relative min-h-screen w-full overflow-hidden flex flex-col justify-between pt-16 pb-16 px-5 md:px-12">
+      <!-- Interactive Specimen Stage -->
+      <div id="hero-lens-stage" class="relative mx-auto w-full max-w-[1320px] h-[500px] md:h-[550px] flex items-center justify-center my-auto">
+
+        <!-- SVG HUD Connector Network Layer -->
+        <svg viewBox="0 0 1000 550" class="pointer-events-none absolute inset-0 w-full h-full z-20" preserveAspectRatio="xMidYMid meet">
+          <g stroke="rgba(255,255,255,0.55)" stroke-width="1" fill="#0c0b0d">
+            <line x1="265" y1="115" x2="335" y2="70" /><circle cx="265" cy="115" r="2" /><circle cx="335" cy="70" r="2" />
+            <line x1="420" y1="110" x2="795" y2="155" /><circle cx="420" cy="110" r="2" /><circle cx="795" cy="155" r="2" />
+            <line x1="385" y1="120" x2="485" y2="210" /><circle cx="385" cy="120" r="2" /><circle cx="485" cy="210" r="2" />
+            <line x1="315" y1="225" x2="380" y2="255" /><circle cx="315" cy="225" r="2" /><circle cx="380" cy="255" r="2" />
+            <line x1="495" y1="210" x2="380" y2="255" />
+            <line x1="555" y1="210" x2="795" y2="155" />
+            <line x1="560" y1="220" x2="640" y2="265" /><circle cx="640" cy="265" r="2" />
+            <line x1="795" y1="155" x2="640" y2="265" />
+            <line x1="120" y1="250" x2="215" y2="315" /><circle cx="120" cy="250" r="2" /><circle cx="215" cy="315" r="2" />
+            <line x1="275" y1="315" x2="380" y2="255" /><circle cx="275" cy="315" r="2" />
+            <line x1="215" y1="330" x2="155" y2="395" /><circle cx="155" cy="395" r="2" />
+            <line x1="645" y1="265" x2="745" y2="285" /><circle cx="745" cy="285" r="2" />
+            <line x1="790" y1="295" x2="835" y2="365" /><circle cx="835" cy="365" r="2" />
+            <line x1="645" y1="325" x2="795" y2="375" /><circle cx="645" cy="325" r="2" /><circle cx="795" cy="375" r="2" />
+            <line x1="825" y1="390" x2="745" y2="445" /><circle cx="745" cy="445" r="2" />
+            <line x1="485" y1="395" x2="395" y2="460" /><circle cx="485" cy="395" r="2" /><circle cx="395" cy="460" r="2" />
+            <line x1="640" y1="480" x2="600" y2="515" /><circle cx="640" cy="480" r="2" /><circle cx="600" cy="515" r="2" />
+          </g>
+        </svg>
+
+        <!-- Secondary Top-Left Specimen: butterfly.png (X-ray outside, True-colour wing inside static frame) -->
+        <div class="pointer-events-none absolute left-[4%] md:left-[9%] top-[3%] w-[220px] h-[210px] md:w-[260px] md:h-[245px] z-10">
+          <img src="./public/specimens/butterfly-xray.png" alt="X-ray radiograph of butterfly.png specimen" class="w-full h-full object-contain opacity-90 mix-blend-screen" />
+          <div class="absolute inset-0" style="clip-path: inset(10% 24% 30% 8%);">
+            <img src="./public/specimens/butterfly-color.png" alt="" class="w-full h-full object-contain" />
+          </div>
+          <div class="absolute left-[8%] top-[10%] w-[68%] h-[60%] border border-white/85">
+            <span class="absolute left-2.5 top-2 font-mono text-[11px] tracking-[0.04em] text-white/95">butterfly.png</span>
+          </div>
+          <span class="absolute right-[4%] top-[0%] font-mono text-[11px] text-[#dfe9ff]/85">647.7468.89</span>
+        </div>
+
+        <!-- Layer 1 (Outside Lens): Botanical Peony X-ray Radiograph Underlay -->
+        <div class="pointer-events-none absolute inset-0 flex items-center justify-center z-10">
+          <div class="relative w-[380px] h-[380px] md:w-[490px] md:h-[490px] translate-y-3">
+            <img src="./public/specimens/peony-xray.png" alt="X-ray radiograph of Petal 10-petal botanical bloom" class="w-full h-full object-contain opacity-85 mix-blend-screen" />
+          </div>
+        </div>
+
+        <!-- Layer 2 (Clipped to Cursor Lens): True-Colour Peony Underlay -->
+        <div id="hero-color-layer" class="pointer-events-none absolute inset-0 flex items-center justify-center z-15 will-change-[clip-path]" style="clip-path: inset(25% 35% 25% 35%);">
+          <div class="relative w-[380px] h-[380px] md:w-[490px] md:h-[490px] translate-y-3">
+            <img src="./public/specimens/peony-color.png" alt="" class="w-full h-full object-contain" />
+          </div>
+        </div>
+
+        <!-- Layer 3: 3D 10-Petal Glass Flower WebGL Canvas -->
+        <div class="absolute inset-0 z-20 flex items-center justify-center">
+          <div id="hero-webgl-container" class="relative w-[420px] h-[420px] md:w-[540px] md:h-[540px]"></div>
+        </div>
+
+        <!-- Layer 4: Moving 1px White Hairline Lens Frame -->
+        <div id="hero-lens-frame" class="pointer-events-none absolute top-0 left-0 z-30 border border-white/95 shadow-[0_0_30px_rgba(244,167,192,0.12)] will-change-transform" style="width: 280px; height: 280px;">
+          <div class="absolute left-2.5 top-2 flex items-center gap-2 font-mono text-[11px] tracking-[0.04em] text-white">
+            <span>flower.petal</span>
+            <span id="hero-petal-badge" class="hidden px-1.5 py-0.2 bg-[#f4a7c0]/25 border border-[#ffd3e0]/60 text-[#ffd3e0] text-[10px]"></span>
+          </div>
+          <span id="hero-lens-coords" class="absolute right-2.5 top-2 font-mono text-[10px] tracking-[0.04em] text-white/80 tabular-nums">x 686.4 / y 286.0</span>
+          <span class="absolute left-2.5 bottom-2 font-mono text-[10px] tracking-[0.04em] text-[#ffd3e0]/80">10 petals + convert dome</span>
+          <span class="absolute right-2.5 bottom-2 font-mono text-[11px] tracking-[0.05em] text-white font-medium">not.xray</span>
+          <span class="absolute left-1/2 -bottom-[3px] -translate-x-1/2 w-[5px] h-[5px] rounded-full bg-[#0c0b0d] border border-white"></span>
+        </div>
+
+        <!-- Layer 5: Floating HUD Specimen Chips & Real Petal Action Nodes -->
+        <div class="pointer-events-none absolute inset-0 z-30">
+          <div data-petal-idx="0" data-cursor="shift.tap" class="hud-chip pointer-events-auto cursor-pointer absolute left-[35%] top-[15%] hidden md:inline-flex">
+            <span class="text-[11px] text-white">-39.45673,54 <span class="text-[#f4a7c0]">· shift.tap</span></span>
+          </div>
+          <div data-cursor=".xray" class="hud-chip pointer-events-auto absolute left-[34%] top-[27%] hidden sm:inline-flex">
+            <span class="text-[11px] text-white">.xray <span class="text-[#f4a7c0]">· radiograph</span></span>
+          </div>
+          <div data-petal-idx="-1" data-cursor="convert.dome" class="hud-chip pointer-events-auto cursor-pointer absolute left-[48%] top-[32%] hidden lg:inline-flex">
+            <span class="text-[11px] text-white">28.7896.543 <span class="text-[#c9a6ff]">· convert · dome</span></span>
+          </div>
+          <div class="hidden md:flex flex-col items-end absolute right-[13%] top-[20%] font-mono text-[11px] text-white/85">
+            <span>1243.254</span>
+            <span class="text-white/60">.569</span>
+            <span class="mt-2 text-white/75">-16.18</span>
+          </div>
+          <div data-petal-idx="0" data-cursor="compress" class="hud-chip pointer-events-auto cursor-pointer absolute left-[3%] md:left-[6%] top-[40%]">
+            <span class="text-[10px] text-white/60">.png / .jpg</span>
+            <span class="text-[11px] text-white">compress</span>
+          </div>
+          <div data-petal-idx="2" data-cursor="ocr" class="hud-chip pointer-events-auto cursor-pointer absolute left-[10%] md:left-[16%] top-[53%]">
+            <span class="text-[11px] text-white">6398.349 <span class="text-[#f4a7c0]">· ocr · copy text</span></span>
+          </div>
+          <div data-petal-idx="7" data-cursor="crop" class="hud-chip pointer-events-auto cursor-pointer absolute left-[4%] md:left-[8%] top-[68%] hidden sm:inline-flex">
+            <span class="text-[11px] text-white">-29.64 <span class="text-[#f4a7c0]">· crop · redact</span></span>
+          </div>
+          <div data-petal-idx="6" data-cursor="remove.bg" class="hud-chip pointer-events-auto cursor-pointer absolute right-[4%] md:right-[8%] top-[42%]">
+            <span class="text-[11px] text-white">object.peony <span class="text-[#f4a7c0]">· remove.bg · ai</span></span>
+          </div>
+          <div data-petal-idx="9" data-cursor="merge.pdf" class="hud-chip pointer-events-auto cursor-pointer absolute right-[3%] md:right-[6%] top-[59%]">
+            <span class="text-[11px] text-white">-26.638.73,14 <span class="text-[#f4a7c0]">· merge.pdf</span></span>
+          </div>
+          <div data-petal-idx="1" data-cursor="exif.clean" class="hud-chip pointer-events-auto cursor-pointer absolute right-[12%] md:right-[18%] top-[74%] hidden sm:inline-flex">
+            <span class="text-[11px] text-white">not.found <span class="text-[#f4a7c0]">· exif.clean</span></span>
+          </div>
+          <div data-petal-idx="4" data-cursor="annotate" class="hud-chip pointer-events-auto cursor-pointer absolute left-[24%] md:left-[30%] bottom-[10%]">
+            <span class="text-[11px] text-white">xray.effect <span class="text-[#f4a7c0]">· annotate · edit</span></span>
+          </div>
+          <div class="hidden md:block absolute left-[57%] bottom-[3%] font-mono text-[11px] text-white/80">.stem</div>
+        </div>
+      </div>
+
+      <!-- Bottom Hero Bar: Scan-line Headline + Scroll Cue + Magnetic Download CTA -->
+      <div class="relative z-30 mx-auto w-full max-w-[1320px] grid grid-cols-1 lg:grid-cols-12 items-end gap-4 pt-1">
+        <div class="lg:col-span-7 flex flex-col items-start">
+          <div class="mb-1.5 inline-flex items-center gap-2 font-mono text-[10px] tracking-[0.14em] uppercase text-[#dfe9ff]/75">
+            <span class="w-1.5 h-1.5 rounded-full bg-[#f4a7c0]"></span>
+            <span>SPECIMEN 01 · WINDOWS DESKTOP UTILITY</span>
+          </div>
+
+          <div class="relative inline-block">
+            <div aria-hidden="true" class="font-display text-4xl sm:text-5xl xl:text-[58px] font-bold tracking-[-0.03em] leading-[1.02]" style="-webkit-text-stroke: 1px rgba(223, 233, 255, 0.55); color: transparent;">
+              Drag. Tap. Bloom.
+            </div>
+            <h1 id="hero-headline-solid" class="font-display absolute inset-0 text-4xl sm:text-5xl xl:text-[58px] font-bold tracking-[-0.03em] leading-[1.02] text-white" style="clip-path: inset(0% 0% 100% 0%);">
+              Drag. Tap. <span class="text-[#ffd3e0]">Bloom.</span>
+            </h1>
+            <div id="hero-scan-line" aria-hidden="true" class="pointer-events-none absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-[#dfe9ff] to-transparent shadow-[0_0_12px_#dfe9ff]"></div>
+          </div>
+
+          <p class="mt-2.5 max-w-xl font-sans text-xs sm:text-sm text-[#d8d7de] leading-relaxed">
+            Drag any file, tap a key (
+            <span class="specimen-word">Shift<span class="specimen-badge">16.0000.key · key.shift</span></span>
+            by default), and a 3D glass
+            <span class="specimen-word">flower<span class="specimen-badge">28.7896.543 · flower.glb</span></span>
+            of 10 tools + a
+            <span class="specimen-word">Convert<span class="specimen-badge">00.0000.dome · convert</span></span>
+            dome opens under your cursor. Drop the file on a petal.
+          </p>
+        </div>
+
+        <!-- Bobbing .png file icon Scroll Cue -->
+        <div class="lg:col-span-2 flex flex-col items-center justify-end">
+          <div class="flex flex-col items-center gap-1.5">
+            <div class="animate-bounce flex flex-col items-center justify-center w-7 h-9 border border-white/75 bg-[#dfe9ff]/[0.06] backdrop-blur-sm relative">
+              <span class="absolute right-0 top-0 w-2 h-2 border-l border-b border-white/75 bg-[#0c0b0d]"></span>
+              <span class="font-mono text-[8px] tracking-tighter text-[#ffd3e0] mt-2">.png</span>
+            </div>
+            <span class="font-mono text-[10px] tracking-[0.14em] uppercase text-white/65">drag to scroll</span>
+          </div>
+        </div>
+
+        <div class="lg:col-span-3 flex flex-wrap lg:justify-end items-center gap-3">
+          <a href="https://github.com/LetMeCodex/Petal/releases/latest" target="_blank" rel="noopener noreferrer" data-cursor=".exe" class="magnetic-btn relative inline-flex items-center justify-center gap-3 overflow-hidden px-7 py-4 bg-[#f4a7c0]/20 hover:bg-[#f4a7c0]/30 border border-[#ffd3e0]/80 text-[#fff5f8] backdrop-blur-xl shadow-[0_0_40px_rgba(244,167,192,0.22)] font-mono text-xs md:text-sm tracking-[0.06em]">
+            <span class="pointer-events-none absolute left-1 top-1 w-1.5 h-1.5 border-l border-t border-white/80"></span>
+            <span class="pointer-events-none absolute right-1 bottom-1 w-1.5 h-1.5 border-r border-b border-white/80"></span>
+            <span>Petal for Windows</span>
+            <span class="text-[#ffd3e0]/75">· free</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         SCENE 02: THE DRAG (Pinned ~250vh Scrub Story)
+         =================================================================== -->
+    <section id="scene-drag" data-section="DROP" class="relative min-h-screen w-full overflow-hidden flex flex-col justify-between py-20 px-5 md:px-12 border-t border-white/10">
+      <div class="relative z-30 mx-auto w-full max-w-[1320px] flex flex-wrap items-center justify-between gap-4">
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center gap-2 font-mono text-[11px] tracking-[0.14em] uppercase text-[#dfe9ff]/70">
+            <span class="w-1.5 h-1.5 rounded-full bg-[#f4a7c0]"></span>
+            <span>SCENE 02 · THE DRAG</span>
+          </div>
+          <h2 class="font-display text-2xl sm:text-4xl font-semibold tracking-tight text-white">
+            One file, from folder to cut-out in a single gesture.
+          </h2>
+        </div>
+        <div class="flex items-center gap-3 px-3.5 py-2 border border-white/35 bg-white/[0.03] backdrop-blur-md font-mono text-xs">
+          <span class="text-[#f4a7c0]">STEP</span>
+          <span id="drag-step-num" class="text-white font-semibold">01</span>
+          <span class="text-white/40">/ 04</span>
+          <span id="drag-step-text" class="hidden sm:inline text-[#dfe9ff]/80 ml-2">01 · DRAG FILE (mug.jpg)</span>
+        </div>
+      </div>
+
+      <div class="relative mx-auto w-full max-w-[1320px] h-[520px] md:h-[560px] flex items-center justify-center my-auto">
+        <!-- Dark Hairline Windows Explorer Window -->
+        <div id="drag-explorer" class="absolute left-[2%] md:left-[6%] top-[14%] w-[290px] sm:w-[340px] border border-white/45 bg-[#111015]/90 backdrop-blur-md z-15">
+          <div class="flex items-center justify-between px-3 py-2 border-b border-white/25 font-mono text-[10px] text-white/70">
+            <div class="flex items-center gap-2">
+              <span class="w-2 h-2 border border-white/60"></span>
+              <span>C:\Users\Studio\Shoots</span>
+            </div>
+            <div class="flex items-center gap-2 text-white/40"><span>—</span><span>□</span><span>×</span></div>
+          </div>
+          <div class="p-4 grid grid-cols-2 gap-3">
+            <div class="relative p-2.5 border border-white/65 bg-[#dfe9ff]/[0.06] flex flex-col items-center gap-2">
+              <div class="w-20 h-20 flex items-center justify-center">
+                <img src="./public/specimens/mug-xray.png" alt="mug.jpg x-ray thumbnail" class="w-full h-full object-contain" />
+              </div>
+              <div class="w-full flex items-center justify-between font-mono text-[10px] text-white">
+                <span>mug.jpg</span><span class="text-white/50">4.2 MB</span>
+              </div>
+            </div>
+            <div class="p-2.5 border border-white/15 bg-white/[0.01] flex flex-col items-center gap-2 opacity-45">
+              <div class="w-20 h-20 flex items-center justify-center">
+                <img src="./public/specimens/butterfly-xray.png" alt="wing.png thumbnail" class="w-16 h-16 object-contain" />
+              </div>
+              <div class="w-full flex items-center justify-between font-mono text-[10px] text-white/70">
+                <span>wing.png</span><span>1.8 MB</span>
+              </div>
+            </div>
+          </div>
+          <div class="px-3 py-1.5 border-t border-white/15 flex items-center justify-between font-mono text-[9px] text-white/50">
+            <span>2 items · 1 selected</span><span>drag initiated</span>
+          </div>
+        </div>
+
+        <!-- Shift Keycap Annotation -->
+        <div id="drag-keycap" class="cursor-pointer absolute left-[6%] md:left-[12%] bottom-[8%] z-30 flex items-center gap-3 px-4 py-2.5 border border-white/65 bg-[#0c0b0d]/95 shadow-[0_6px_0_rgba(255,255,255,0.2)]">
+          <span class="px-2 py-1 border border-[#f4a7c0]/80 bg-[#f4a7c0]/15 font-mono text-xs text-[#ffd3e0]">⇧ Shift</span>
+          <div class="flex flex-col font-mono text-[11px]">
+            <span class="text-white">key: shift / tap once</span>
+            <span class="text-[9px] text-white/55">opens 10-petal wheel under cursor</span>
+          </div>
+        </div>
+
+        <!-- Center Blooming Flower SVG/Radiograph Wheel for Scene 2 -->
+        <div id="drag-flower-wrap" class="relative w-[360px] h-[360px] md:w-[440px] md:h-[440px] z-20 flex items-center justify-center opacity-0 scale-50">
+          <div id="drag-flower-canvas" class="relative w-full h-full flex items-center justify-center"></div>
+          <div id="drag-dome-label" class="pointer-events-none absolute left-1/2 -bottom-7 -translate-x-1/2 whitespace-nowrap font-mono text-[11px] text-[#ffd3e0] transition-opacity duration-300" style="opacity:0"></div>
+          <div id="drag-petal-label" class=" absolute right-[-4%] top-[18%] z-30 opacity-0">
+            <div class="hud-chip active">
+              <span class="text-[10px] text-white/60">petal.07 · local model</span>
+              <span class="text-[11px] text-[#ffd3e0]">remove background · on-device ai</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dragged File Ghost (mug.jpg) -->
+        <div id="drag-ghost" class="pointer-events-none absolute z-30 w-28 p-2 border border-white/90 bg-[#0c0b0d]/90 backdrop-blur-md shadow-2xl">
+          <img src="./public/specimens/mug-xray.png" alt="Dragged mug.jpg ghost" class="w-24 h-24 object-contain mx-auto" />
+          <div class="mt-1 flex items-center justify-between font-mono text-[10px] text-[#ffd3e0]">
+            <span>mug.jpg</span><span>↗</span>
+          </div>
+        </div>
+
+        <!-- Phase 4 Interactive Result Lens (mug no bg.png before/after hairline) -->
+        <div id="drag-result-stage" class="absolute inset-0 z-35 flex items-center justify-center opacity-0 pointer-events-none">
+          <div id="mug-compare-box" class="pointer-events-auto relative w-[330px] h-[330px] sm:w-[410px] sm:h-[390px] border border-white bg-[#0c0b0d] shadow-[0_0_50px_rgba(244,167,192,0.16)] cursor-ew-resize overflow-hidden">
+            <div class="absolute inset-0 flex items-center justify-center p-6">
+              <img src="./public/specimens/mug-xray.png" alt="X-ray mug before background removal" class="w-full h-full object-contain opacity-90" />
+              <span class="absolute right-3 top-2.5 font-mono text-[11px] text-[#dfe9ff]/75">mug.jpg · .xray</span>
+            </div>
+            <div id="mug-cutout-clip" class="absolute inset-0 flex items-center justify-center p-6 checker-grid" style="clip-path: inset(0 40% 0 0);">
+              <img src="./public/petal/cards/07-after.webp" alt="The mug, cut out by Petal's on-device model" class="w-full h-full object-contain drop-shadow-[0_12px_28px_rgba(244,167,192,0.28)]" />
+              <span class="absolute left-3 top-2.5 px-1.5 py-0.5 bg-[#f4a7c0]/20 border border-[#ffd3e0]/60 font-mono text-[11px] text-[#ffd3e0]">mug no bg.png</span>
+              <span class="absolute left-3 bottom-2.5 font-mono text-[11px] text-white">petal.output · on this PC</span>
+            </div>
+            <div id="mug-hairline-divider" class="pointer-events-none absolute inset-y-0 w-[1px] bg-white" style="left: 60%;">
+              <div class="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-[#0c0b0d] border border-white flex items-center justify-center font-mono text-[10px] text-[#ffd3e0]">↔</div>
+            </div>
+            <span class="pointer-events-none absolute right-3 bottom-2.5 font-mono text-[10px] text-white/65">drag hairline to inspect cutout</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step Timeline Bar -->
+      <div class="relative z-30 mx-auto w-full max-w-[1320px] grid grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t border-white/15 font-mono text-[11px]">
+        <div class="drag-step-pill px-3 py-2 border border-[#f4a7c0] bg-[#f4a7c0]/10 text-[#ffd3e0]">01 · DRAG FILE (mug.jpg)</div>
+        <div class="drag-step-pill px-3 py-2 border border-white/15 bg-white/[0.02] text-white/55">02 · TAP SHIFT TO BLOOM</div>
+        <div class="drag-step-pill px-3 py-2 border border-white/15 bg-white/[0.02] text-white/55">03 · HOVER PETAL (remove.bg)</div>
+        <div class="drag-step-pill px-3 py-2 border border-white/15 bg-white/[0.02] text-white/55">04 · PLUCK &amp; REVEAL (mug no bg.png)</div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         SCENE 03: THE PETALS (Horizontal Scroll of 10 Specimen Cards + Center Dome)
+         =================================================================== -->
+    <section id="scene-petals" data-section="DROP" class="relative min-h-screen w-full overflow-hidden flex flex-col justify-between py-20 border-t border-white/10">
+      <div class="px-5 md:px-12 mx-auto w-full max-w-[1320px] flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2 font-mono text-[11px] tracking-[0.14em] uppercase text-[#dfe9ff]/75">
+            <span class="w-1.5 h-1.5 rounded-full bg-[#f4a7c0]"></span>
+            <span>SCENE 03 · SPECIMEN WHEEL (10 PETALS + CENTER DOME)</span>
+          </div>
+          <h2 class="mt-1 font-display text-2xl sm:text-4xl font-semibold tracking-tight text-white">
+            Ten tools around a <span class="text-[#ffd3e0]">Convert</span> center dome.
+          </h2>
+        </div>
+        <div class="flex items-center gap-3 px-4 py-2.5 border border-[#f4a7c0]/65 bg-[#f4a7c0]/10 backdrop-blur-md">
+          <span class="w-3 h-3 rounded-full border border-[#ffd3e0] bg-[#f4a7c0]/40"></span>
+          <div class="font-mono text-xs">
+            <span class="text-white font-medium">CENTER DOME · CONVERT</span>
+            <span class="block text-[10px] text-[#ffd3e0]/80">drop in the center to transcode formats (.png, .webp, .jpg, .pdf)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="relative w-full my-auto py-6 overflow-x-auto md:overflow-visible no-scrollbar">
+        <div id="petals-track" class="flex items-center gap-5 px-5 md:px-12 w-max will-change-transform"></div>
+      </div>
+
+      <div class="px-5 md:px-12 mx-auto w-full max-w-[1320px] flex items-center justify-between gap-4 font-mono text-xs text-white/60">
+        <span>HOVER ANY SPECIMEN CARD TO OPEN ITS LENS &amp; ROLL ODOMETER DIGITS</span>
+        <span>10 PETALS · LOCAL EXECUTION</span>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         SCENE 04: PETAL ISLAND (Pinned ~300vh + Draggable Jelly Drop & Droplet)
+         =================================================================== -->
+    <section id="scene-island" data-section="ISLAND" class="relative min-h-screen w-full overflow-hidden flex flex-col justify-between py-20 px-5 md:px-12 border-t border-white/10">
+      <div class="relative z-30 mx-auto w-full max-w-[1320px] flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2 font-mono text-[11px] tracking-[0.14em] uppercase text-[#dfe9ff]/75">
+            <span class="w-1.5 h-1.5 rounded-full bg-[#f4a7c0]"></span>
+            <span>SCENE 04 · PETAL ISLAND</span>
+          </div>
+          <h2 class="mt-1 font-display text-2xl sm:text-4xl font-semibold tracking-tight text-white">
+            A liquid-glass drop that clings, stretches, and glances.
+          </h2>
+        </div>
+        <div id="island-state-tabs" class="flex flex-wrap items-center gap-1.5">
+          <button type="button" data-island-state="idle" class="island-tab px-2.5 py-1.5 border border-[#f4a7c0] bg-[#f4a7c0]/20 text-[#ffd3e0] font-mono text-[11px]">state.idle</button>
+          <button type="button" data-island-state="glance" class="island-tab px-2.5 py-1.5 border border-white/25 bg-white/[0.03] text-white/60 font-mono text-[11px]">state.glance</button>
+          <button type="button" data-island-state="drag" class="island-tab px-2.5 py-1.5 border border-white/25 bg-white/[0.03] text-white/60 font-mono text-[11px]">state.drag / tendril</button>
+          <button type="button" data-island-state="work" class="island-tab px-2.5 py-1.5 border border-white/25 bg-white/[0.03] text-white/60 font-mono text-[11px]">state.work</button>
+          <button type="button" data-island-state="done" class="island-tab px-2.5 py-1.5 border border-white/25 bg-white/[0.03] text-white/60 font-mono text-[11px]">state.done / drip</button>
+          <button type="button" data-island-state="carry" class="island-tab px-2.5 py-1.5 border border-white/25 bg-white/[0.03] text-white/60 font-mono text-[11px]">state.carry / jelly</button>
+        </div>
+      </div>
+
+      <!-- Large Mock Screen Top-Edge -->
+      <div id="island-screen" class="relative mx-auto w-full max-w-[1220px] h-[480px] md:h-[520px] my-auto border border-white/45 bg-[#0e0d12]/90 overflow-hidden shadow-[0_0_80px_rgba(0,0,0,0.9)]">
+        <div class="relative z-20 h-2 w-full bg-white/[0.06] border-b border-white/35 flex items-center justify-between px-4 font-mono text-[8px] tracking-widest text-white/40">
+          <span>DISPLAY 01 · 144 HZ · MULTIMONITOR AWARE</span>
+          <span>STEPS ASIDE FOR FULLSCREEN GAMES &amp; VIDEO</span>
+        </div>
+
+        <!-- Left & Right HUD Annotations -->
+        <div class="pointer-events-none absolute left-5 top-16 z-20 hidden md:flex flex-col gap-3">
+          <div class="hud-chip active">
+            <span class="text-[10px] text-white/60">island.metaball</span>
+            <span id="island-chip-label" class="text-xs text-[#ffd3e0]">state.idle</span>
+          </div>
+          <div id="island-chip-desc" class="max-w-[240px] p-3 border border-white/20 bg-[#0c0b0d]/85 font-mono text-[11px] text-[#dfe9ff]/80 leading-relaxed">
+            Clings to the top screen edge with liquid fillets and a quiet CPU pulse ring.
+          </div>
+        </div>
+
+        <div class="pointer-events-none absolute right-5 top-16 z-20 hidden md:flex flex-col items-end gap-2">
+          <div class="hud-chip">
+            <span id="island-pos-coord" class="text-[10px] text-white/60">x 0 / y 0</span>
+            <span id="island-edge-status" class="text-xs text-white">edge: top.clung</span>
+          </div>
+          <span class="font-mono text-[10px] text-white/55">recorded from the real app · not a mock-up</span>
+        </div>
+
+        <div id="island-snap-preview" class="hidden pointer-events-none absolute top-2 left-1/2 -translate-x-1/2 w-56 h-5 border-b border-dashed border-[#f4a7c0] bg-[#f4a7c0]/15 flex items-center justify-center font-mono text-[9px] text-[#ffd3e0]">
+          release to snap &amp; regrow liquid fillets
+        </div>
+
+        <!-- The real Petal Island, recorded from the app (Petal repo: scripts/record-site.js) -->
+        <div class="pointer-events-none absolute left-1/2 top-2 z-30 -translate-x-1/2 w-[700px] max-w-[96%]">
+          <video id="island-video" data-clip-video class="block w-full h-auto" muted playsinline loop preload="metadata" aria-label="Petal Island, recorded from the real app"></video>
+        </div>
+
+        <div class="absolute inset-x-0 bottom-0 p-4 border-t border-white/15 bg-[#0c0b0d]/80 flex flex-wrap items-center justify-between gap-2 font-mono text-[11px] text-white/65">
+          <span>JELLY PHYSICS: STRETCHES WITH VELOCITY · WOBBLES ON LANDING</span>
+          <span class="text-[#ffd3e0]">FOLLOWS ACROSS MONITORS · AUTO-HIDES IN FULLSCREEN</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         SCENE 05: PETAL ASK (Ctrl × 2 Command Bar, File Tumble & Safety Diagram)
+         =================================================================== -->
+    <section id="scene-ask" data-section="ASK" class="relative min-h-screen w-full overflow-hidden flex flex-col justify-between py-20 px-5 md:px-12 border-t border-white/10">
+      <div class="relative z-30 mx-auto w-full max-w-[1320px] flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2 font-mono text-[11px] tracking-[0.14em] uppercase text-[#dfe9ff]/75">
+            <span class="w-1.5 h-1.5 rounded-full bg-[#f4a7c0]"></span>
+            <span>SCENE 05 · PETAL ASK (CTRL × 2)</span>
+          </div>
+          <h2 class="mt-1 font-display text-2xl sm:text-4xl font-semibold tracking-tight text-white">
+            Tap <span class="text-[#ffd3e0]">Ctrl</span> twice. Ask about your files in plain English or Hinglish.
+          </h2>
+        </div>
+        <div id="ask-ctrl-keycap" class="cursor-pointer flex items-center gap-3 px-4 py-2 border border-white/60 bg-[#0c0b0d] shadow-[0_4px_0_rgba(255,255,255,0.2)]">
+          <span class="px-2 py-0.5 border border-[#f4a7c0] bg-[#f4a7c0]/20 font-mono text-xs text-[#ffd3e0]">Ctrl</span>
+          <span class="font-mono text-xs text-white">tap × 2 anywhere</span>
+        </div>
+      </div>
+
+      <div class="relative mx-auto w-full max-w-[1320px] my-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        <div class="lg:col-span-7 flex flex-col items-center">
+          <div class="relative w-full max-w-[540px] mt-6">
+            <video id="ask-video" data-clip-video class="block w-full h-auto" muted playsinline loop preload="metadata" aria-label="Petal Ask, recorded from the real app: a question, results streaming in, Remove all, the files tumbling into the bud, then Undo"></video>
+          </div>
+          <div class="mt-3 w-full max-w-[540px] pt-2.5 border-t border-white/15 flex items-center justify-between font-mono text-[11px]">
+            <div class="flex items-center gap-2 text-white/70 truncate">
+              <span class="text-[#c9a6ff] shrink-0">TRY ASKING:</span>
+              <span id="ask-ticker-text" class="text-[#ffd3e0] truncate">"300mb se badi files dikhao"</span>
+            </div>
+            <span class="hidden sm:inline text-[10px] text-white/45 shrink-0 ml-2">REAL PANEL · SAMPLE FILES · EN / HINGLISH</span>
+          </div>
+        </div>
+
+        <!-- Safety Boundary Diagram -->
+        <div class="lg:col-span-5 flex flex-col justify-between p-5 border border-white/35 bg-[#0e0d12]/90">
+          <div class="flex items-center justify-between border-b border-white/15 pb-3 mb-4 font-mono text-xs">
+            <span class="text-white">SAFETY BOUNDARY DIAGRAM</span>
+            <span class="px-2 py-0.5 border border-white/40 text-[10px] text-[#dfe9ff]">GUARD.ACTIVE</span>
+          </div>
+          <p class="font-sans text-xs sm:text-sm text-[#d8d7de] leading-relaxed mb-4">
+            Petal Ask shows you exactly what will happen first; removing moves files to the Recycle Bin with one-click Undo (Ctrl+Z), and <span class="text-white font-medium">never touches</span>:
+          </p>
+          <div class="space-y-2.5 font-mono text-xs">
+            <div class="flex items-center justify-between px-3 py-2 border border-white/20 bg-[#0c0b0d]/90"><span class="line-through text-white/60">windows/</span><span class="px-1.5 py-0.5 border border-[#f4a7c0]/60 bg-[#f4a7c0]/15 text-[10px] text-[#ffd3e0]">not.touched</span></div>
+            <div class="flex items-center justify-between px-3 py-2 border border-white/20 bg-[#0c0b0d]/90"><span class="line-through text-white/60">program files/</span><span class="px-1.5 py-0.5 border border-[#f4a7c0]/60 bg-[#f4a7c0]/15 text-[10px] text-[#ffd3e0]">not.touched</span></div>
+            <div class="flex items-center justify-between px-3 py-2 border border-white/20 bg-[#0c0b0d]/90"><span class="line-through text-white/60">.git/</span><span class="px-1.5 py-0.5 border border-[#f4a7c0]/60 bg-[#f4a7c0]/15 text-[10px] text-[#ffd3e0]">not.touched</span></div>
+            <div class="flex items-center justify-between px-3 py-2 border border-white/20 bg-[#0c0b0d]/90"><span class="line-through text-white/60">in use (open in another app)</span><span class="px-1.5 py-0.5 border border-[#f4a7c0]/60 bg-[#f4a7c0]/15 text-[10px] text-[#ffd3e0]">not.touched</span></div>
+            <div class="flex items-center justify-between px-3 py-2 border border-white/20 bg-[#0c0b0d]/90"><span class="line-through text-white/60">online-only (OneDrive)</span><span class="px-1.5 py-0.5 border border-[#f4a7c0]/60 bg-[#f4a7c0]/15 text-[10px] text-[#ffd3e0]">not.touched</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         SCENE 06: PRIVACY — "Nothing leaves your PC"
+         =================================================================== -->
+    <section id="scene-privacy" data-section="PRIVACY" class="relative min-h-screen w-full overflow-hidden flex flex-col justify-between py-24 px-5 md:px-12 border-t border-white/10">
+      <div class="mx-auto w-full max-w-[1320px] flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2 font-mono text-[11px] tracking-[0.14em] uppercase text-[#dfe9ff]/75">
+            <span class="w-1.5 h-1.5 rounded-full bg-[#f4a7c0]"></span>
+            <span>SCENE 06 · PRIVACY ARCHITECTURE</span>
+          </div>
+          <h2 class="mt-1 font-display text-3xl sm:text-5xl font-bold tracking-tight text-white">Nothing leaves your PC.</h2>
+        </div>
+        <div class="font-mono text-xs text-[#ffd3e0] px-3.5 py-2 border border-white/40 bg-white/[0.03]">UPLOAD: NONE · 100% LOCAL EXECUTION</div>
+      </div>
+
+      <div class="relative mx-auto w-full max-w-[1320px] my-10 border border-white/35 bg-[#0e0d12]/90 p-6 md:p-10">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+          <div class="lg:col-span-8 relative h-[380px] border border-white/25 bg-[#0c0b0d] overflow-hidden">
+            <svg viewBox="0 0 800 420" class="w-full h-full" preserveAspectRatio="xMidYMid meet">
+              <rect x="50" y="40" width="490" height="340" fill="rgba(223, 233, 255, 0.03)" stroke="rgba(223, 233, 255, 0.65)" stroke-width="1.2" />
+              <rect x="85" y="75" width="190" height="120" fill="rgba(223, 233, 255, 0.04)" stroke="rgba(255, 255, 255, 0.35)" stroke-width="1" />
+              <rect x="85" y="225" width="190" height="120" fill="rgba(244, 167, 192, 0.06)" stroke="rgba(244, 167, 192, 0.55)" stroke-width="1" />
+              <rect x="315" y="140" width="190" height="180" fill="rgba(223, 233, 255, 0.04)" stroke="rgba(255, 255, 255, 0.35)" stroke-width="1" />
+              <path d="M 180 135 C 260 135, 340 165, 410 215 C 460 250, 320 310, 180 285 Z" fill="none" stroke="#dfe9ff" stroke-width="1.2" stroke-dasharray="6 4">
+                <animate attributeName="stroke-dashoffset" from="40" to="0" dur="2.2s" repeatCount="indefinite" />
+              </path>
+              <line x1="540" y1="145" x2="655" y2="145" stroke="rgba(255, 255, 255, 0.45)" stroke-width="1" stroke-dasharray="3 5" />
+              <line x1="642" y1="135" x2="658" y2="155" stroke="#f4a7c0" stroke-width="1.5" />
+              <line x1="658" y1="135" x2="642" y2="155" stroke="#f4a7c0" stroke-width="1.5" />
+              <text x="668" y="182" fill="#ffd3e0" font-family="monospace" font-size="11">upload: none</text>
+              <text x="668" y="198" fill="rgba(255,255,255,0.45)" font-family="monospace" font-size="10">dissolves into grain</text>
+              <text x="68" y="62" fill="rgba(223,233,255,0.75)" font-family="monospace" font-size="11">CHASSIS.XRAY · LOCAL BUS LOOP</text>
+            </svg>
+            <div class="hud-chip absolute left-[16%] top-[24%] cursor-pointer"><span class="text-[10px] text-white/60">Windows.Media.Ocr</span><span class="text-xs text-white">ocr: windows engine</span></div>
+            <div class="hud-chip active absolute left-[20%] top-[62%] cursor-pointer"><span class="text-[10px] text-white/60">ONNX · on-device neural net</span><span class="text-xs text-[#ffd3e0]">remove bg: local model</span></div>
+            <div class="hud-chip absolute left-[54%] top-[56%] cursor-pointer"><span class="text-[10px] text-white/60">Glance hardware rings</span><span class="text-xs text-white">stats: on-device</span></div>
+          </div>
+
+          <div class="lg:col-span-4 space-y-4 font-mono text-xs">
+            <div class="p-5 border border-white/45 bg-[#0c0b0d]">
+              <div class="text-[10px] tracking-[0.12em] text-[#f4a7c0]">LOCAL AI &amp; OCR ENGINE</div>
+              <p class="mt-2 font-sans text-sm text-[#d8d7de] leading-relaxed">
+                Everything runs on your PC. Nothing is uploaded. Remove background uses a local AI model; OCR uses Windows' own engine.
+              </p>
+            </div>
+            <div class="flex items-center justify-between p-3 border border-white/20 bg-white/[0.02]"><span class="text-white/65">OUTBOUND REQUESTS</span><span class="text-[#ffd3e0]">0 PACKETS</span></div>
+            <div class="flex items-center justify-between p-3 border border-white/20 bg-white/[0.02]"><span class="text-white/65">OFFLINE CAPABILITY</span><span class="text-[#ffd3e0]">100% FUNCTIONAL</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         SCENE 07: LIGHT BY DESIGN (< 1% CPU Oscilloscope + Motion Toggle)
+         =================================================================== -->
+    <section id="scene-light" data-section="PRIVACY" class="relative w-full py-24 px-5 md:px-12 border-t border-white/10">
+      <div class="mx-auto w-full max-w-[1320px] grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        <div class="lg:col-span-7 p-6 border border-white/35 bg-[#0e0d12]/90">
+          <div class="flex flex-wrap items-center justify-between gap-2 pb-4 border-b border-white/15 font-mono text-xs">
+            <div class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-[#f4a7c0]"></span><span class="text-white">OSCILLOSCOPE · IDLE CPU TRACE</span></div>
+            <div class="text-[#ffd3e0]">IDLE: <span id="cpu-readout" class="text-white font-semibold">0.3</span>% CPU (WELL UNDER 1%)</div>
+          </div>
+          <div class="relative h-[180px] w-full my-4 border border-white/20 bg-[#0c0b0d] overflow-hidden">
+            <svg viewBox="0 0 800 170" class="w-full h-full" preserveAspectRatio="none">
+              <line x1="0" y1="40" x2="800" y2="40" stroke="rgba(255,255,255,0.08)" stroke-dasharray="4 4" />
+              <line x1="0" y1="90" x2="800" y2="90" stroke="rgba(255,255,255,0.08)" stroke-dasharray="4 4" />
+              <line x1="0" y1="130" x2="800" y2="130" stroke="rgba(244,167,192,0.4)" stroke-dasharray="3 3" />
+              <path id="oscilloscope-path" d="M 0 148 L 800 148" fill="none" stroke="#dfe9ff" stroke-width="1.8" />
+            </svg>
+            <span class="absolute left-3 top-[112px] font-mono text-[10px] text-[#f4a7c0]">1.0% THRESHOLD</span>
+            <span class="absolute right-3 bottom-2 font-mono text-[10px] text-[#dfe9ff]/80">144 HZ CAP · ZERO BACKGROUND POLLING</span>
+          </div>
+        </div>
+
+        <div class="lg:col-span-5 flex flex-col justify-between p-6 border border-white/40 bg-[#0e0d12]/90">
+          <div>
+            <div class="font-mono text-[11px] tracking-[0.14em] uppercase text-[#dfe9ff]/75">SCENE 07 · BUILT LIGHT</div>
+            <h2 class="mt-1 font-display text-2xl sm:text-3xl font-semibold text-white">Motion: Auto / Full / Calm.</h2>
+            <p class="mt-3 font-sans text-sm text-[#d8d7de] leading-relaxed">
+              Idle uses well under 1% of the CPU; animations cap themselves on 144 Hz screens. Toggle <span class="text-[#ffd3e0] font-mono">Calm</span> below to visibly calm this website's own animations too.
+            </p>
+          </div>
+          <div class="mt-6 grid grid-cols-3 gap-2 font-mono text-xs">
+            <button type="button" data-motion-btn="auto" class="motion-mode-btn p-3 border border-white/25 bg-[#0c0b0d] text-left">Auto</button>
+            <button type="button" data-motion-btn="full" class="motion-mode-btn p-3 border border-[#f4a7c0] bg-[#f4a7c0]/20 text-white text-left">Full</button>
+            <button type="button" data-motion-btn="calm" class="motion-mode-btn p-3 border border-white/25 bg-[#0c0b0d] text-left">Calm</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================
+         SCENE 08: DOWNLOAD & KIND SMARTSCREEN NOTE
+         =================================================================== -->
+    <section id="scene-download" data-section="DOWNLOAD" class="relative min-h-screen w-full overflow-hidden flex flex-col justify-between py-24 px-5 md:px-12 border-t border-white/10">
+      <div class="mx-auto w-full max-w-[1320px] flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2 font-mono text-[11px] tracking-[0.14em] uppercase text-[#dfe9ff]/75">
+            <span class="w-1.5 h-1.5 rounded-full bg-[#f4a7c0]"></span>
+            <span>SCENE 08 · SPECIMEN ACQUISITION</span>
+          </div>
+          <h2 class="mt-1 font-display text-3xl sm:text-5xl font-bold tracking-tight text-white">Bring Petal to your desktop.</h2>
+        </div>
+        <a href="https://github.com/LetMeCodex/Petal" target="_blank" rel="noopener noreferrer" data-cursor=".github" class="px-5 py-2.5 border border-white/55 bg-[#dfe9ff]/[0.05] hover:bg-[#dfe9ff]/[0.1] font-mono text-xs text-white">
+          view source on github ↗
+        </a>
+      </div>
+
+      <!-- Big Lens over a Field of X-Ray Petals -->
+      <div class="relative mx-auto w-full max-w-[1320px] h-[380px] my-8 border border-white/25 bg-[#0c0b0d] overflow-hidden flex items-center justify-center">
+        <div class="pointer-events-none absolute inset-0 flex items-center justify-center gap-8 opacity-75">
+          <img src="./public/specimens/butterfly-xray.png" alt="" class="w-64 h-64 object-contain -rotate-12 hidden sm:block" />
+          <img src="./public/specimens/peony-xray.png" alt="Field of x-ray petals" class="w-96 h-96 object-contain" />
+          <img src="./public/specimens/mug-xray.png" alt="" class="w-60 h-60 object-contain rotate-12 hidden sm:block" />
+        </div>
+        <div class="pointer-events-none absolute inset-0 flex items-center justify-center" style="clip-path: inset(14% 32% 14% 32%);">
+          <img src="./public/specimens/peony-color.png" alt="" class="w-96 h-96 object-contain" />
+        </div>
+        <div class="pointer-events-none absolute w-[420px] h-[265px] border border-white shadow-[0_0_50px_rgba(244,167,192,0.18)]">
+          <span class="absolute left-3 top-2 font-mono text-[11px] text-white" data-release="file">Petal-Setup-1.0.0.exe</span>
+          <span class="absolute right-3 bottom-2 font-mono text-[11px] text-[#ffd3e0]">not.xray</span>
+        </div>
+
+        <div class="relative z-30 flex flex-col items-center gap-4">
+          <a href="https://github.com/LetMeCodex/Petal/releases/latest" target="_blank" rel="noopener noreferrer" data-cursor=".exe" class="magnetic-btn px-9 py-5 bg-[#f4a7c0]/25 hover:bg-[#f4a7c0]/35 border border-[#ffd3e0] text-white backdrop-blur-xl shadow-[0_0_40px_rgba(244,167,192,0.3)] font-mono text-base font-semibold flex items-center gap-3">
+            <span class="w-2.5 h-2.5 rounded-full bg-[#ffd3e0]"></span>
+            <span>Petal for Windows · free</span>
+            <span class="text-[#ffd3e0]">↓</span>
+          </a>
+          <a data-release="direct" href="https://github.com/LetMeCodex/Petal/releases/latest" target="_blank" rel="noopener noreferrer" class="font-mono text-[11px] text-[#dfe9ff]/85 hover:text-[#ffd3e0] underline">
+            Direct installer: <span data-release="file">Petal-Setup-1.0.0.exe</span> (<span data-release="size">137.4 MB</span>)
+          </a>
+        </div>
+      </div>
+
+      <!-- Release Metadata + SmartScreen Note -->
+      <div class="mx-auto w-full max-w-[1320px] grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-5 p-5 border border-white/35 bg-[#0e0d12]/90 font-mono text-xs space-y-2.5">
+          <div class="text-[10px] tracking-[0.14em] text-[#f4a7c0]">GITHUB RELEASES METADATA</div>
+          <div class="flex justify-between py-1.5 border-b border-white/15"><span class="text-white/60">VERSION</span><span class="text-white" data-release="version">v1.0.0 (2026-10-23)</span></div>
+          <div class="flex justify-between py-1.5 border-b border-white/15"><span class="text-white/60">SIZE</span><span class="text-[#ffd3e0]" data-release="size">137.4 MB</span></div>
+          <div class="flex justify-between py-1.5 border-b border-white/15"><span class="text-white/60">OS</span><span class="text-white">Windows 10 / 11 (x64)</span></div>
+          <div class="flex justify-between py-1.5"><span class="text-white/60">SOURCE</span><a href="https://github.com/LetMeCodex/Petal" target="_blank" rel="noopener noreferrer" class="text-[#dfe9ff] underline">github.com/LetMeCodex/Petal ↗</a></div>
+        </div>
+
+        <div class="lg:col-span-7 p-5 border border-white/35 bg-[#0e0d12]/90 grid grid-cols-1 sm:grid-cols-12 gap-5 items-center">
+          <div class="sm:col-span-7 space-y-2">
+            <div class="font-mono text-[10px] tracking-[0.12em] uppercase text-[#ffd3e0]">A KIND NOTE ON WINDOWS SMARTSCREEN</div>
+            <h3 class="font-display text-lg font-semibold text-white">Not code-signed yet — here is what Windows may show.</h3>
+            <p class="font-sans text-xs sm:text-sm text-[#d8d7de] leading-relaxed">
+              The installer isn't code-signed yet, so Windows may show <span class="text-white font-mono">"Windows protected your PC"</span>; kindly choose <span class="text-[#ffd3e0] font-mono">More info → Run anyway</span>.
+            </p>
+          </div>
+          <div class="sm:col-span-5 p-3.5 border border-white/40 bg-[#0c0b0d] font-mono text-[10px] space-y-3">
+            <div class="flex justify-between text-white/70 border-b border-white/15 pb-1.5"><span>Windows protected your PC</span><span>×</span></div>
+            <div class="flex items-center gap-2"><span class="px-1.5 py-0.5 border border-[#f4a7c0] bg-[#f4a7c0]/20 text-[#ffd3e0] underline">1. More info</span><span class="text-white/60">← click first</span></div>
+            <div class="flex justify-end gap-2"><span class="px-2.5 py-1 border border-white bg-white/15 text-white">2. Run anyway ↗</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- =====================================================================
+       SCENE 09: FOOTER (Closing X-ray Flower + Variable-Width Display Type)
+       ===================================================================== -->
+  <footer id="scene-footer" class="relative w-full overflow-hidden pt-20 pb-28 px-5 md:px-12 border-t border-white/15 bg-[#0c0b0d]">
+    <div class="mx-auto w-full max-w-[1320px] flex flex-col items-center text-center">
+      <div class="relative w-40 h-40 flex items-center justify-center mb-6">
+        <img src="./public/specimens/peony-xray.png" alt="Closing x-ray flower" class="w-36 h-36 object-contain opacity-85" />
+      </div>
+      <div id="footer-variable-text" class="my-6 flex flex-wrap items-center justify-center font-display text-4xl sm:text-7xl lg:text-[92px] leading-none tracking-tight text-white cursor-crosshair"></div>
+      <div class="mt-8 pt-6 border-t border-white/15 w-full flex flex-wrap items-center justify-between gap-4 font-mono text-xs text-white/60">
+        <div class="flex items-center gap-4">
+          <a href="https://github.com/LetMeCodex/Petal" target="_blank" rel="noopener noreferrer" class="hover:text-[#ffd3e0]">github.com/LetMeCodex/Petal ↗</a>
+          <span>·</span>
+          <a href="https://github.com/LetMeCodex/Petal/releases/latest" target="_blank" rel="noopener noreferrer" class="hover:text-[#ffd3e0]">releases/latest ↗</a>
+        </div>
+        <div class="text-white/45">BOTANICAL X-RAY / FILE HUD · WINDOWS 10 &amp; 11</div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- =====================================================================
+       SINGLE RAF ENGINE: GSAP + LENIS + THREE.JS X-RAY FLOWER + INTERACTIONS
+       ===================================================================== -->
+  <script>
+    gsap.registerPlugin(ScrollTrigger, CustomEase);
+    CustomEase.create("petal.out", "0.16, 1, 0.3, 1");
+    CustomEase.create("petal.spring", "M0,0 C0.12,1.28 0.32,0.92 0.56,1.02 0.78,0.99 0.9,1 1,1");
+
+    // ---------------------------------------------------------------------
+    // 1. Web Audio Glass Sound Synthesizer (Off by default)
+    // ---------------------------------------------------------------------
+    let soundEnabled = false;
+    let audioCtx = null;
+    function playGlassTick(idx = 0) {
+      if (!soundEnabled) return;
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const now = audioCtx.currentTime;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const freq = 1480 + (idx % 10) * 58;
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.18, now + 0.038);
+      gain.gain.setValueAtTime(0.0001, now);
+      gain.gain.linearRampToValueAtTime(0.03, now + 0.004);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.045);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.05);
+    }
+
+    const sfxBtn = document.getElementById('sfx-toggle-btn');
+    sfxBtn.addEventListener('click', () => {
+      soundEnabled = !soundEnabled;
+      sfxBtn.textContent = soundEnabled ? 'SFX:ON' : 'SFX:OFF';
+      sfxBtn.setAttribute('aria-pressed', String(soundEnabled));
+      if (soundEnabled) playGlassTick(3);
+    });
+
+    // ---------------------------------------------------------------------
+    // 2. Split-Flap Corner Section Indicator & Odometer Helper
+    // ---------------------------------------------------------------------
+    let currentSection = 'DROP';
+    function renderSplitFlap(text) {
+      const container = document.getElementById('corner-section-flap');
+      if (!container) return;
+      const padded = text.padEnd(8, ' ');
+      container.innerHTML = padded.split('').map(ch =>
+        `<span class="inline-block px-[2px] py-[1px] bg-white/[0.04] border border-white/15">${ch === ' ' ? '&nbsp;' : ch}</span>`
+      ).join('');
+    }
+    renderSplitFlap('DROP');
+
+    // ---------------------------------------------------------------------
+    // 3. Preloader (<= 1.6s) + Hero Scanline Reveal
+    // ---------------------------------------------------------------------
+    (function runPreloader() {
+      const preloader = document.getElementById('preloader');
+      const circle = document.getElementById('preloader-circle');
+      const glyph = document.getElementById('preloader-glyph');
+      const countEl = document.getElementById('preloader-count');
+      const assetEl = document.getElementById('preloader-asset');
+      const morphEl = document.getElementById('preloader-morph');
+      const heroLens = document.getElementById('hero-lens-frame');
+      const assets = ['scanning flower.glb …', 'compiling xray.frag …', 'seeding grain.png …', 'specimen ready · not.xray'];
+
+      const proxy = { v: 0 };
+      const tl = gsap.timeline({
+        onComplete: () => {
+          preloader.style.display = 'none';
+          // Trigger Hero headline scanline
+          gsap.to('#hero-headline-solid', { clipPath: 'inset(0% 0% 0% 0%)', duration: 0.95, ease: 'petal.out' });
+          gsap.fromTo('#hero-scan-line', { top: '0%', opacity: 1 }, { top: '100%', opacity: 0, duration: 1.0, ease: 'petal.out' });
+        }
+      });
+
+      tl.to(circle, { strokeDashoffset: 0, duration: 0.7, ease: 'petal.out' }, 0);
+      tl.to(glyph, { scale: 1, opacity: 1, duration: 0.6, ease: 'petal.spring' }, 0.12);
+      tl.to(proxy, {
+        v: 100,
+        duration: 0.9,
+        ease: 'power2.inOut',
+        onUpdate: () => {
+          const val = Math.round(proxy.v);
+          countEl.textContent = String(val).padStart(3, '0');
+          assetEl.textContent = assets[Math.min(assets.length - 1, Math.floor((val / 100) * assets.length))];
+        }
+      }, 0);
+
+      tl.add(() => {
+        if (heroLens && morphEl) {
+          const r = heroLens.getBoundingClientRect();
+          gsap.to('#preloader-meta, #preloader-glyph', { opacity: 0, duration: 0.15 });
+          gsap.to(morphEl, {
+            width: r.width,
+            height: r.height,
+            borderRadius: 0,
+            duration: 0.42,
+            ease: 'petal.out'
+          });
+        }
+      }, 0.92);
+      tl.to(preloader, { opacity: 0, duration: 0.32 }, 1.15);
+    })();
+
+    // ---------------------------------------------------------------------
+    // 4. Three.js 3D 10-Petal Glass Flower + Dual X-Ray / Pink Lens Shader
+    // ---------------------------------------------------------------------
+    const lensState = {
+      x: 680, y: 275, targetX: 680, targetY: 275, vx: 0, vy: 0,
+      width: 280, height: 280, containerW: 1200, containerH: 550, inside: false
+    };
+    let highlightedPetalIdx = null;
+
+    // The flower is Petal's real glass-flower.js, the same one the app's wheel runs
+    // (public/petal/js/petal-live.js). Its light follows the lens; hovered chips lift their petal.
+    window.renderHeroFlower = () => window.petalHero?.frame(lensState, highlightedPetalIdx);
+
+    // Wire HUD petal chips in Hero
+    document.querySelectorAll('[data-petal-idx]').forEach(el => {
+      el.addEventListener('mouseenter', () => {
+        const idx = parseInt(el.getAttribute('data-petal-idx'), 10);
+        highlightedPetalIdx = idx;   // -1 is the Convert dome
+        playGlassTick(idx + 1);
+      });
+      el.addEventListener('mouseleave', () => { highlightedPetalIdx = null; });
+    });
+
+    // ---------------------------------------------------------------------
+    // 5. Hero Lens Controller (120ms Spring Lag)
+    // ---------------------------------------------------------------------
+    const heroStage = document.getElementById('hero-lens-stage');
+    const heroLensFrame = document.getElementById('hero-lens-frame');
+    const heroColorLayer = document.getElementById('hero-color-layer');
+    const heroCoords = document.getElementById('hero-lens-coords');
+
+    function measureHeroStage() {
+      if (!heroStage) return;
+      const r = heroStage.getBoundingClientRect();
+      lensState.containerW = r.width;
+      lensState.containerH = r.height;
+      if (!lensState.inside) {
+        lensState.targetX = r.width * 0.52;
+        lensState.targetY = r.height * 0.52;
+        lensState.x = lensState.targetX;
+        lensState.y = lensState.targetY;
+      }
+    }
+    measureHeroStage();
+    window.addEventListener('resize', measureHeroStage);
+
+    heroStage.addEventListener('pointermove', (e) => {
+      const r = heroStage.getBoundingClientRect();
+      lensState.inside = true;
+      lensState.targetX = Math.max(150, Math.min(r.width - 150, e.clientX - r.left));
+      lensState.targetY = Math.max(150, Math.min(r.height - 150, e.clientY - r.top));
+    });
+    heroStage.addEventListener('pointerleave', () => { lensState.inside = false; });
+
+    // ---------------------------------------------------------------------
+    // 6. Scene 2: The Drag (Pinned Scrub + Interactive Cutout Slider)
+    // ---------------------------------------------------------------------
+    (function initDragScene() {
+      const tl = gsap.timeline({
+        scrollTrigger: {
+          trigger: '#scene-drag',
+          start: 'top top',
+          end: '+=240%',
+          pin: true,
+          scrub: 0.8,
+          onEnter: () => renderSplitFlap('DROP'),
+          onEnterBack: () => renderSplitFlap('DROP'),
+          onUpdate: (self) => {
+            const p = self.progress;
+            const step = p < 0.25 ? 0 : p < 0.52 ? 1 : p < 0.76 ? 2 : 3;
+            window.petalDrag?.step(step);
+            const labels = [
+              '01 · DRAG FILE (mug.jpg)',
+              '02 · TAP SHIFT TO BLOOM',
+              '03 · HOVER PETAL (remove.bg)',
+              '04 · PLUCK & REVEAL (mug no bg.png)'
+            ];
+            document.getElementById('drag-step-num').textContent = '0' + (step + 1);
+            document.getElementById('drag-step-text').textContent = labels[step];
+            document.querySelectorAll('.drag-step-pill').forEach((pill, idx) => {
+              pill.className = `drag-step-pill px-3 py-2 border transition-colors ${idx === step ? 'border-[#f4a7c0] bg-[#f4a7c0]/10 text-[#ffd3e0]' : 'border-white/15 bg-white/[0.02] text-white/55'}`;
+            });
+          }
+        }
+      });
+
+      tl.fromTo('#drag-ghost', { x: -240, y: -30, rotate: 0 }, { x: -10, y: -10, rotate: -7.5, duration: 0.28 }, 0)
+        .fromTo('#drag-flower-wrap', { scale: 0.2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.24, ease: 'petal.spring' }, 0.25)
+        .to('#drag-ghost', { x: 48, y: -42, rotate: 4.5, scale: 0.88, duration: 0.22 }, 0.5)
+        .to('#drag-petal-label', { opacity: 1, duration: 0.18 }, 0.52)
+        .to('#drag-ghost, #drag-flower-wrap', { scale: 0.15, opacity: 0, duration: 0.16 }, 0.75)
+        .to('#drag-explorer', { opacity: 0.25, duration: 0.18 }, 0.75)
+        .to('#drag-result-stage', { opacity: 1, duration: 0.22 }, 0.78);
+
+      const compareBox = document.getElementById('mug-compare-box');
+      const cutoutClip = document.getElementById('mug-cutout-clip');
+      const divider = document.getElementById('mug-hairline-divider');
+      let dragging = false;
+      compareBox.addEventListener('pointerdown', () => { dragging = true; });
+      window.addEventListener('pointerup', () => { dragging = false; });
+      compareBox.addEventListener('pointermove', (e) => {
+        if (!dragging && e.buttons !== 1) return;
+        const r = compareBox.getBoundingClientRect();
+        const pct = Math.max(8, Math.min(92, ((e.clientX - r.left) / r.width) * 100));
+        cutoutClip.style.clipPath = `inset(0 ${100 - pct}% 0 0)`;
+        divider.style.left = `${pct}%`;
+      });
+    })();
+
+    // ---------------------------------------------------------------------
+    // 7. Scene 3: The 10 Petals Horizontal Specimen Cards
+    // ---------------------------------------------------------------------
+    // Every "after" is what Petal actually produced from the "before", and every number was measured
+    // from the files (Petal repo: scripts/make-site-cards.js). Editor petals also show the real editor.
+    const PETAL_CARDS = [
+      {
+            "idx": "01",
+            "title": "Compress",
+            "tag": ".jpg → smaller .jpg",
+            "copy": "Smaller files that look the same, saved as a copy next to the original.",
+            "before": "340 KB",
+            "after": "99 KB",
+            "unit": "SIZE",
+            "note": "71% smaller, same 2400 px",
+            "ui": false,
+            "alpha": false
+      },
+      {
+            "idx": "02",
+            "title": "Clean metadata",
+            "tag": "exif.gps → removed",
+            "copy": "Strips camera details and GPS location before you share, without touching the picture.",
+            "before": "9",
+            "after": "0",
+            "unit": "TAGS",
+            "note": "EXIF 414 B → 0 B, picture untouched",
+            "ui": false,
+            "alpha": false
+      },
+      {
+            "idx": "03",
+            "title": "Copy text (OCR)",
+            "tag": "receipt.png → text",
+            "copy": "Reads the text in a screenshot or photo with Windows' own engine and puts it on your clipboard.",
+            "before": "0",
+            "after": "158",
+            "unit": "CHARS",
+            "note": "35 words, on the clipboard",
+            "ui": false,
+            "alpha": false
+      },
+      {
+            "idx": "04",
+            "title": "Edit",
+            "tag": "rotate · warmth · contrast",
+            "copy": "Rotate, flip, brightness, contrast, saturation, warmth and resize, right from the wheel.",
+            "before": "2400×1800",
+            "after": "1800×2400",
+            "unit": "PX",
+            "note": "rotated, warmer, a touch more contrast",
+            "ui": true,
+            "alpha": false
+      },
+      {
+            "idx": "05",
+            "title": "Annotate",
+            "tag": "box · arrow · circle",
+            "copy": "Boxes, arrows, circles, pen, highlighter and text on any image.",
+            "before": "0",
+            "after": "3",
+            "unit": "MARKS",
+            "note": "saved as a new image next to the original",
+            "ui": true,
+            "alpha": false
+      },
+      {
+            "idx": "06",
+            "title": "Add background",
+            "tag": "alpha → studio fill",
+            "copy": "Puts a cut-out on a gradient or solid backdrop, with padding, corners and a soft shadow.",
+            "before": "900×900",
+            "after": "1080×1080",
+            "unit": "PX",
+            "note": "padding, rounded corners and a soft shadow",
+            "ui": true,
+            "alpha": true
+      },
+      {
+            "idx": "07",
+            "title": "Remove background",
+            "tag": "on-device AI",
+            "copy": "A local AI model cuts the subject out. Nothing is uploaded.",
+            "before": "BG",
+            "after": "3.6 s",
+            "unit": "ON THIS PC",
+            "note": "local model, 3.6 s once loaded (first run 87.5 s incl. download)",
+            "ui": false,
+            "alpha": true
+      },
+      {
+            "idx": "08",
+            "title": "Crop",
+            "tag": "aspect · trim",
+            "copy": "Free, original, 1:1, 4:3, 3:2, 16:9, 9:16 or 4:5, with exact pixel sizes.",
+            "before": "2400×1800",
+            "after": "1800×1800",
+            "unit": "PX",
+            "note": "snapped to 1:1",
+            "ui": true,
+            "alpha": false
+      },
+      {
+            "idx": "09",
+            "title": "Redact",
+            "tag": "black box · pixelate · blur",
+            "copy": "Black box, pixelate or blur, burned into the pixels so the next person can't peel it off.",
+            "before": "2",
+            "after": "0",
+            "unit": "EXPOSED",
+            "note": "burned into the pixels, not a layer",
+            "ui": true,
+            "alpha": false
+      },
+      {
+            "idx": "10",
+            "title": "Merge to PDF",
+            "tag": "multi-file → .pdf",
+            "copy": "Drop several images or PDFs on one petal and get a single PDF, in name order.",
+            "before": "3",
+            "after": "1",
+            "unit": "FILES",
+            "note": "3 pages, 373 KB",
+            "ui": false,
+            "alpha": false
+      }
+    ];
+
+    (function initPetalsScene() {
+      const track = document.getElementById('petals-track');
+      const img = (id, kind) => `./public/petal/cards/${id}-${kind}.webp`;
+      track.innerHTML = PETAL_CARDS.map((c, i) => `
+        <article class="petal-card group relative shrink-0 w-[300px] sm:w-[340px] h-[460px] border border-white/40 hover:border-white bg-[#0e0d11]/90 flex flex-col justify-between p-5" data-before="${c.before}" data-after="${c.after}" data-idx="${i}">
+          <div class="flex items-center justify-between font-mono text-[11px]">
+            <span class="px-1.5 py-0.5 border border-white/40 text-white">PETAL.${c.idx}</span>
+            <span class="text-[#ffd3e0] truncate ml-2">${c.tag}</span>
+          </div>
+          <div class="relative my-3 flex-1 border border-white/20 bg-[#0c0b0d] overflow-hidden flex items-center justify-center">
+            <img src="${img(c.idx, 'before')}" alt="${c.title}: before" loading="lazy" class="w-full h-full object-contain p-3" />
+            <div class="card-lens-reveal absolute inset-0 flex items-center justify-center ${c.alpha ? 'checker-grid' : 'bg-[#121016]'} transition-all duration-500" style="clip-path: circle(0% at 50% 50%);">
+              <img src="${img(c.idx, 'after')}" alt="${c.title}: what Petal made" loading="lazy" class="w-full h-full object-contain p-3" />
+              <span class="absolute right-2.5 bottom-2 px-1.5 py-0.5 bg-[#0c0b0d]/85 border border-white/75 font-mono text-[10px] text-[#ffd3e0]">petal.output</span>
+            </div>
+            ${c.ui ? `<figure class="card-ui absolute right-2 top-2 z-20 w-[92px] hover:w-[280px] border border-white/60 bg-[#0c0b0d] shadow-[0_10px_30px_rgba(0,0,0,.6)] transition-[width] duration-300 origin-top-right" data-cursor="real.editor"><img src="${img(c.idx, 'ui')}" alt="The real ${c.title} editor in Petal" loading="lazy" class="block w-full h-auto" /><figcaption class="px-1.5 py-0.5 font-mono text-[9px] text-white/70">real editor</figcaption></figure>` : ''}
+            <div class="absolute left-2.5 bottom-2 z-20 px-2 py-1 bg-[#0c0b0d]/90 border border-white/35 font-mono text-[11px] flex items-center gap-1.5">
+              <span class="card-metric text-white font-semibold">${c.before}</span>
+              <span class="text-[9px] text-[#f4a7c0]">${c.unit}</span>
+            </div>
+          </div>
+          <div>
+            <h3 class="font-display text-xl font-semibold text-white group-hover:text-[#ffd3e0]">${c.title}</h3>
+            <p class="mt-1 font-sans text-xs text-[#d8d7de]/85 leading-relaxed">${c.copy}</p>
+            <p class="mt-1.5 font-mono text-[10px] text-[#ffd3e0]/75">measured · ${c.note}</p>
+          </div>
+        </article>
+      `).join('');
+
+      document.querySelectorAll('.petal-card').forEach(card => {
+        const lens = card.querySelector('.card-lens-reveal');
+        const metric = card.querySelector('.card-metric');
+        card.addEventListener('pointerenter', () => {
+          playGlassTick(parseInt(card.dataset.idx, 10));
+          lens.style.clipPath = 'circle(140% at 50% 50%)';
+          metric.textContent = card.dataset.after;
+        });
+        card.addEventListener('pointerleave', () => {
+          lens.style.clipPath = 'circle(0% at 50% 50%)';
+          metric.textContent = card.dataset.before;
+          card.style.transform = 'none';
+        });
+        card.addEventListener('pointermove', (e) => {
+          const r = card.getBoundingClientRect();
+          const px = (e.clientX - r.left) / r.width;
+          const py = (e.clientY - r.top) / r.height;
+          card.style.transform = `perspective(800px) rotateX(${((0.5 - py) * 10).toFixed(1)}deg) rotateY(${((px - 0.5) * 10).toFixed(1)}deg)`;
+        });
+      });
+
+      gsap.to(track, {
+        x: () => -Math.max(0, track.scrollWidth - window.innerWidth + 96),
+        ease: 'none',
+        scrollTrigger: {
+          trigger: '#scene-petals',
+          start: 'top top',
+          end: '+=260%',
+          pin: true,
+          scrub: 0.8
+        }
+      });
+    })();
+
+    // ---------------------------------------------------------------------
+    // 8. Scene 4: Petal Island State Machine + Interactive Jelly Drag
+    // ---------------------------------------------------------------------
+    const ISLAND_DESC = {
+      idle: 'Clings to the top screen edge with liquid fillets and a quiet CPU pulse ring.',
+      glance: 'Hover for live CPU/GPU rings, a sloshing RAM liquid tank, active-only network stream, battery, and rolling clock.',
+      drag: 'Drag a file near it: a liquid-glass tendril reaches toward your cursor and action beads appear.',
+      work: 'Blush liquid rises inside the glass pill while your file is processed locally.',
+      done: 'Results drip out as a droplet you can grab and drag straight into any app.'
+    };
+
+    ISLAND_DESC.carry = 'Grab it and put it anywhere: it stretches with your speed, previews snapping back to the top edge, and wobbles as it lands.';
+    const ISLAND_CLIP = { idle: 'island-idle', glance: 'island-glance', drag: 'island-drag', work: 'island-work', done: 'island-done', carry: 'island-jelly' };
+    const ISLAND_LABEL = { drag: 'state.drag / tendril', done: 'state.done / drip', carry: 'state.carry / jelly' };
+
+    // Swaps a recording in place: transparent VP9 WebM first, H.264 MP4 for browsers without it.
+    function setClip(video, name) {
+      if (!video || video.dataset.clip === name) return;
+      video.dataset.clip = name;
+      video.poster = `./public/petal/video/${name}.png`;
+      video.innerHTML = `<source src="./public/petal/video/${name}.webm" type='video/webm; codecs="vp9"'><source src="./public/petal/video/${name}.mp4" type="video/mp4">`;
+      video.load();
+      if (video.dataset.inView === '1' && document.documentElement.dataset.motion !== 'calm') video.play().catch(() => {});
+    }
+    // Recordings play only while on screen (and not in Calm), like the app's own animations.
+    const clipObserver = new IntersectionObserver((entries) => entries.forEach(({ target, isIntersecting }) => {
+      target.dataset.inView = isIntersecting ? '1' : '0';
+      if (isIntersecting && document.documentElement.dataset.motion !== 'calm') target.play().catch(() => {}); else target.pause();
+    }), { threshold: 0.2 });
+    document.querySelectorAll('[data-clip-video]').forEach((v) => clipObserver.observe(v));
+
+    function setIslandState(state) {
+      document.querySelectorAll('.island-tab').forEach(btn => {
+        const active = btn.dataset.islandState === state;
+        btn.className = `island-tab px-2.5 py-1.5 border font-mono text-[11px] ${active ? 'border-[#f4a7c0] bg-[#f4a7c0]/20 text-[#ffd3e0]' : 'border-white/25 bg-white/[0.03] text-white/60'}`;
+      });
+      document.getElementById('island-chip-label').textContent = ISLAND_LABEL[state] || `state.${state}`;
+      document.getElementById('island-chip-desc').textContent = ISLAND_DESC[state];
+      document.getElementById('island-edge-status').textContent = state === 'carry' ? 'mode: floating.jelly' : 'edge: top.clung';
+      setClip(document.getElementById('island-video'), ISLAND_CLIP[state]);
+    }
+    setIslandState('glance');
+
+    document.querySelectorAll('.island-tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        playGlassTick(2);
+        setIslandState(btn.dataset.islandState);
+      });
+    });
+
+    // ---------------------------------------------------------------------
+    // 9. Scene 5: Petal Ask Tumble & Undo + Rotating Hinglish/English Ticker
+    // ---------------------------------------------------------------------
+    (function initAskScene() {
+      const video = document.getElementById('ask-video');
+      setClip(video, 'ask-flow');
+      // Tapping the Ctrl keycap replays it from the top, like calling Ask again.
+      document.getElementById('ask-ctrl-keycap')?.addEventListener('click', () => {
+        playGlassTick(5);
+        video.currentTime = 0;
+        video.play().catch(() => {});
+      });
+      const asks = [
+        '"300mb se badi files dikhao"',
+        '"latest screenshot ka bg hatao"',
+        '"duplicate photos"',
+        '"clean up junk"',
+        '"compress images in Downloads"',
+        '"what is taking space"'
+      ];
+      let aIdx = 0;
+      setInterval(() => {
+        aIdx = (aIdx + 1) % asks.length;
+        document.getElementById('ask-ticker-text').textContent = asks[aIdx];
+      }, 2600);
+    })();
+
+    // ---------------------------------------------------------------------
+    // 10. Scene 7: Motion Mode Switcher (Auto / Full / Calm)
+    // ---------------------------------------------------------------------
+    let isCalmMode = false;
+    document.querySelectorAll('.motion-mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const mode = btn.dataset.motionBtn;
+        isCalmMode = mode === 'calm';
+        document.documentElement.dataset.motion = isCalmMode ? 'calm' : 'full';
+        document.querySelectorAll('[data-clip-video]').forEach((v) => { if (isCalmMode) v.pause(); else if (v.dataset.inView === '1') v.play().catch(() => {}); });
+        document.querySelectorAll('.motion-mode-btn').forEach(b => {
+          const active = b.dataset.motionBtn === mode;
+          b.className = `motion-mode-btn p-3 border text-left ${active ? 'border-[#f4a7c0] bg-[#f4a7c0]/20 text-white' : 'border-white/25 bg-[#0c0b0d] text-white/60'}`;
+        });
+      });
+    });
+
+    // ---------------------------------------------------------------------
+    // 11. Scene 9: Variable-Width Interactive Footer Signature
+    // ---------------------------------------------------------------------
+    (function initFooterType() {
+      const container = document.getElementById('footer-variable-text');
+      const text = 'drag. tap. bloom.';
+      container.innerHTML = text.split('').map((ch, i) =>
+        `<span class="footer-char inline-block whitespace-pre transition-all duration-200" data-idx="${i}" style="font-variation-settings: 'wght' 380, 'wdth' 78;">${ch}</span>`
+      ).join('');
+      const chars = container.querySelectorAll('.footer-char');
+      chars.forEach((span, idx) => {
+        span.addEventListener('pointerenter', () => {
+          playGlassTick(idx);
+          chars.forEach((other, j) => {
+            const d = Math.abs(idx - j);
+            const w = d === 0 ? 800 : d === 1 ? 680 : d === 2 ? 520 : 380;
+            const wd = d === 0 ? 100 : d === 1 ? 92 : d === 2 ? 84 : 78;
+            other.style.fontVariationSettings = `'wght' ${w}, 'wdth' ${wd}`;
+            other.style.color = d <= 1 ? '#ffd3e0' : '#ffffff';
+          });
+        });
+      });
+      container.addEventListener('pointerleave', () => {
+        chars.forEach(other => {
+          other.style.fontVariationSettings = `'wght' 380, 'wdth' 78`;
+          other.style.color = '#ffffff';
+        });
+      });
+    })();
+
+    // ---------------------------------------------------------------------
+    // 12. Section Tracking + Lab Drawer + Single rAF Loop (Lenis + GSAP)
+    // ---------------------------------------------------------------------
+    document.querySelectorAll('section[data-section]').forEach(sec => {
+      ScrollTrigger.create({
+        trigger: sec,
+        start: 'top 55%',
+        end: 'bottom 45%',
+        onEnter: () => renderSplitFlap(sec.dataset.section),
+        onEnterBack: () => renderSplitFlap(sec.dataset.section)
+      });
+    });
+
+    const labBtn = document.getElementById('toggle-lab-btn');
+    const labDrawer = document.getElementById('lab-drawer');
+    const labScrub = document.getElementById('lab-global-scrub');
+    labBtn.addEventListener('click', () => labDrawer.classList.toggle('hidden'));
+    labScrub.addEventListener('input', (e) => {
+      const pct = parseFloat(e.target.value) / 100;
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      window.scrollTo(0, pct * maxScroll);
+    });
+
+    // Custom Cursor Tracking
+    const cursorDot = document.getElementById('cursor-dot');
+    const cursorRingWrap = document.getElementById('cursor-ring-wrap');
+    const cursorRingBox = document.getElementById('cursor-ring-box');
+    const cursorLabel = document.getElementById('cursor-label');
+    const cPos = { x: -100, y: -100, rx: -100, ry: -100 };
+
+    window.addEventListener('pointermove', (e) => {
+      cPos.x = e.clientX;
+      cPos.y = e.clientY;
+    }, { passive: true });
+
+    document.querySelectorAll('[data-cursor]').forEach(el => {
+      el.addEventListener('pointerenter', () => {
+        cursorRingBox.className = 'relative -translate-x-1/2 -translate-y-1/2 w-20 h-10 border border-white/90 bg-[#f4a7c0]/10 transition-all duration-200';
+        cursorLabel.textContent = el.getAttribute('data-cursor');
+        cursorLabel.classList.remove('hidden');
+      });
+      el.addEventListener('pointerleave', () => {
+        cursorRingBox.className = 'relative -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full border border-white/55 transition-all duration-200';
+        cursorLabel.classList.add('hidden');
+      });
+    });
+
+    // Lenis Smooth Scroll bound to single gsap.ticker loop
+    const lenis = typeof Lenis !== 'undefined' ? new Lenis({ lerp: 0.1, smoothWheel: true }) : null;
+    if (lenis) lenis.on('scroll', ScrollTrigger.update);
+
+    let lastGrainTime = 0;
+    let grainSeed = 1;
+    const grainEl = document.getElementById('film-grain-layer');
+    const oscPath = document.getElementById('oscilloscope-path');
+    const scrollOdo = document.getElementById('scroll-odometer');
+
+    gsap.ticker.add((time) => {
+      if (lenis && !isCalmMode) lenis.raf(time * 1000);
+
+      // Update Scroll Readout
+      const maxScroll = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      const pct = Math.max(0, Math.min(100, (window.scrollY / maxScroll) * 100));
+      scrollOdo.textContent = pct.toFixed(2).padStart(6, '0');
+      labScrub.value = pct;
+
+      // Update Cursor Ring
+      cPos.rx += (cPos.x - cPos.rx) * 0.2;
+      cPos.ry += (cPos.y - cPos.ry) * 0.2;
+      if (cursorDot) cursorDot.style.transform = `translate3d(${cPos.x}px, ${cPos.y}px, 0)`;
+      if (cursorRingWrap) cursorRingWrap.style.transform = `translate3d(${cPos.rx}px, ${cPos.ry}px, 0)`;
+
+      // Update Hero Lens Position (Lissajous drift when pointer outside)
+      if (!lensState.inside && !isCalmMode) {
+        lensState.targetX = lensState.containerW * 0.52 + Math.sin(time * 0.65) * (lensState.containerW * 0.1);
+        lensState.targetY = lensState.containerH * 0.52 + Math.cos(time * 0.48) * (lensState.containerH * 0.08);
+      }
+      lensState.vx = lensState.vx * 0.68 + (lensState.targetX - lensState.x) * 0.14;
+      lensState.vy = lensState.vy * 0.68 + (lensState.targetY - lensState.y) * 0.14;
+      lensState.x += lensState.vx * 0.55;
+      lensState.y += lensState.vy * 0.55;
+
+      const left = lensState.x - lensState.width * 0.5;
+      const top = lensState.y - lensState.height * 0.5;
+      const right = Math.max(0, lensState.containerW - (left + lensState.width));
+      const bottom = Math.max(0, lensState.containerH - (top + lensState.height));
+      if (heroLensFrame) heroLensFrame.style.transform = `translate3d(${left.toFixed(1)}px, ${top.toFixed(1)}px, 0)`;
+      if (heroColorLayer) heroColorLayer.style.clipPath = `inset(${Math.max(0, top).toFixed(1)}px ${right.toFixed(1)}px ${bottom.toFixed(1)}px ${Math.max(0, left).toFixed(1)}px)`;
+      if (heroCoords) heroCoords.textContent = `x ${lensState.x.toFixed(1)} / y ${lensState.y.toFixed(1)}`;
+
+      // Render Hero 3D Flower
+      if (window.renderHeroFlower) window.renderHeroFlower(time);
+
+      // 12fps Film Grain Breathing
+      if (!isCalmMode && time - lastGrainTime >= 1 / 12) {
+        lastGrainTime = time;
+        grainSeed = (grainSeed % 19) + 1;
+        if (grainEl) grainEl.style.transform = `translate3d(${((grainSeed * 37) % 48) - 24}px, ${((grainSeed * 53) % 48) - 24}px, 0)`;
+      }
+
+      // Oscilloscope < 1% CPU Trace
+      if (oscPath && !isCalmMode) {
+        const pts = [];
+        for (let i = 0; i <= 40; i++) {
+          const x = (i / 40) * 800;
+          const y = 148 - Math.abs(Math.sin(i * 0.4 + time * 3) * 2.5);
+          pts.push(`${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`);
+        }
+        oscPath.setAttribute('d', pts.join(' '));
+      }
+    });
+  </script>
+  <script type="module" src="./public/petal/js/petal-live.js"></script>
+  <script>
+    // Latest release: version, date, size and the direct installer link (falls back to the text already on the page).
+    fetch('https://api.github.com/repos/LetMeCodex/Petal/releases/latest', { headers: { Accept: 'application/vnd.github+json' } })
+      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
+      .then((rel) => {
+        const exe = (rel.assets || []).find((a) => /\.exe$/i.test(a.name));
+        const set = (key, text) => document.querySelectorAll(`[data-release="${key}"]`).forEach((el) => { el.textContent = text; });
+        set('version', `${rel.tag_name} (${(rel.published_at || '').slice(0, 10)})`);
+        if (!exe) return;
+        set('file', exe.name);
+        set('size', `${(exe.size / 1048576).toFixed(1)} MB`);
+        document.querySelectorAll('[data-release="direct"]').forEach((a) => { a.href = exe.browser_download_url; });
+      })
+      .catch(() => {});
+  </script>
+</body>
+</html>

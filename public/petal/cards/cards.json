@@ -1,0 +1,103 @@
+[
+  {
+    "id": "01",
+    "petal": "compress",
+    "title": "Compress",
+    "tag": ".jpg → smaller .jpg",
+    "before": "340 KB",
+    "after": "99 KB",
+    "unit": "SIZE",
+    "note": "71% smaller, same 2400 px"
+  },
+  {
+    "id": "02",
+    "petal": "metadata",
+    "title": "Clean metadata",
+    "tag": "exif.gps → removed",
+    "before": "9",
+    "after": "0",
+    "unit": "TAGS",
+    "note": "EXIF 414 B → 0 B, picture untouched"
+  },
+  {
+    "id": "03",
+    "petal": "ocr",
+    "title": "Copy text (OCR)",
+    "tag": "receipt.png → text",
+    "before": "0",
+    "after": "158",
+    "unit": "CHARS",
+    "note": "35 words, on the clipboard",
+    "text": "CHAI POINT • Koramangala\nOrder #4471 21 Oct 2026\nMasala Chai x2 180.00\nSamosa 120.00\nBun Maska x1 90.00\nSubtotal 390.00\nGST 5% 19.50\nTOTAL 409.50\nUPI ref 6612 0938 4471\nThank you, visit again!"
+  },
+  {
+    "id": "04",
+    "petal": "edit",
+    "title": "Edit",
+    "tag": "rotate · warmth · contrast",
+    "before": "2400×1800",
+    "after": "1800×2400",
+    "unit": "PX",
+    "note": "rotated, warmer, a touch more contrast"
+  },
+  {
+    "id": "05",
+    "petal": "annotate",
+    "title": "Annotate",
+    "tag": "box · arrow · circle",
+    "before": "0",
+    "after": "3",
+    "unit": "MARKS",
+    "note": "saved as a new image next to the original"
+  },
+  {
+    "id": "06",
+    "petal": "addbg",
+    "title": "Add background",
+    "tag": "alpha → studio fill",
+    "before": "900×900",
+    "after": "1080×1080",
+    "unit": "PX",
+    "note": "padding, rounded corners and a soft shadow"
+  },
+  {
+    "id": "07",
+    "petal": "removebg",
+    "title": "Remove background",
+    "tag": "on-device AI",
+    "before": "BG",
+    "after": "3.6 s",
+    "unit": "ON THIS PC",
+    "note": "local model, 3.6 s once loaded (first run 87.5 s incl. download)"
+  },
+  {
+    "id": "08",
+    "petal": "crop",
+    "title": "Crop",
+    "tag": "aspect · trim",
+    "before": "2400×1800",
+    "after": "1800×1800",
+    "unit": "PX",
+    "note": "snapped to 1:1"
+  },
+  {
+    "id": "09",
+    "petal": "redact",
+    "title": "Redact",
+    "tag": "black box · pixelate · blur",
+    "before": "2",
+    "after": "0",
+    "unit": "EXPOSED",
+    "note": "burned into the pixels, not a layer"
+  },
+  {
+    "id": "10",
+    "petal": "merge",
+    "title": "Merge to PDF",
+    "tag": "multi-file → .pdf",
+    "before": "3",
+    "after": "1",
+    "unit": "FILES",
+    "note": "3 pages, 373 KB"
+  }
+]
